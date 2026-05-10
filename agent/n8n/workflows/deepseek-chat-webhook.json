@@ -1,0 +1,96 @@
+{
+  "id": "a9d9cc0d-3a6b-4c94-9d14-a3ccbf5f4e17",
+  "name": "DeepSeek Chat Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_in",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.DEEPSEEK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": $env.DEEPSEEK_MODEL || \"deepseek-chat\", \"messages\": [ { \"role\": \"system\", \"content\": \"You are InterAI. Be concise and practical.\" }, { \"role\": \"user\", \"content\": $json.body?.message || \"Hello\" } ] } }}",
+        "options": {}
+      },
+      "id": "deepseek_chat_completion",
+      "name": "DeepSeek Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"reply\": $json.choices?.[0]?.message?.content || \"No text response returned\", \"provider\": \"deepseek\" } }}",
+        "options": {}
+      },
+      "id": "respond_out",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "pinData": {},
+  "versionId": "74f0b3e2-f0dd-4c70-9bde-f6d4c5f1d145"
+}

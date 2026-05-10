@@ -1,0 +1,144 @@
+{
+  "id": "7fdfca4d-4b1e-46df-b868-5c1f0b29f78d",
+  "name": "DeepSeek Function Calling Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-functions",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_in",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.DEEPSEEK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const context = $json.body?.context?.last_booking || null; const contextLine = context && (context.date || context.time || context.service) ? `Previous booking context: ${JSON.stringify(context)}\\n` : \"\"; return { model: $env.DEEPSEEK_MODEL || \"deepseek-chat\", messages: [ { role: \"system\", content: \"Extract booking intent and call the tool with best-effort structured arguments. Keep date format YYYY-MM-DD and time format HH:mm when available.\" }, { role: \"user\", content: `${contextLine}User message: ${$json.body?.message || \"I need to book an appointment\"}` } ], tool_choice: { type: \"function\", function: { name: \"check_availability\" } }, tools: [ { type: \"function\", function: { name: \"check_availability\", description: \"Parse booking request details\", parameters: { type: \"object\", properties: { action: { type: \"string\", enum: [\"check\", \"book\", \"confirm\"] }, service: { type: \"string\" }, date: { type: \"string\", description: \"Preferred date in YYYY-MM-DD\" }, time: { type: \"string\", description: \"Preferred time, e.g. 15:00\" } } } } } ] }; })() }}",
+        "options": {}
+      },
+      "id": "deepseek_function_request",
+      "name": "DeepSeek Function Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const toolCall = $json.choices?.[0]?.message?.tool_calls?.[0]?.function || null;\nif (!toolCall) {\n  throw new Error('Model did not return a tool call');\n}\n\nlet args = {};\ntry {\n  args = toolCall.arguments ? JSON.parse(toolCall.arguments) : {};\n} catch {\n  args = {};\n}\n\nconst service = args.service || 'general consultation';\nconst date = args.date || new Date(Date.now() + 86400000).toISOString().slice(0, 10);\nconst time = args.time || '10:00';\nconst action = args.action || 'check';\nconst status = action === 'confirm' || action === 'book' ? 'booked' : 'available';\n\nreturn [{\n  json: {\n    parsed: args,\n    status,\n    service,\n    date,\n    time,\n    suggested_slots: [],\n    confirmationCode: 'BK-' + Math.random().toString(36).slice(2, 8).toUpperCase(),\n    message: 'I can book ' + service + ' on ' + date + ' at ' + time + '.'\n  }\n}];"
+      },
+      "id": "simulate_tool",
+      "name": "Simulate Booking Tool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const status = $json.status;\nconst date = $json.date;\nconst time = $json.time;\nconst service = $json.service;\nlet reply;\n\nif (status === 'booked') {\n  reply = `Confirmed. Your ${service} is booked for ${date} at ${time}.`;\n} else if (status === 'available') {\n  reply = `Yes, ${date} at ${time} is available for ${service}. Say \"confirm\" to book it.`;\n} else {\n  reply = 'I can book this for you. Please provide the date (YYYY-MM-DD) and time (HH:mm), for example: 2026-04-15 at 11:00.';\n}\n\nreturn [{\n  json: {\n    reply,\n    response_id: $json.response_id || null,\n    mode: 'function_calling',\n    booking: {\n      status,\n      service,\n      date,\n      time,\n      suggested_slots: $json.suggested_slots || []\n    }\n  }\n}];"
+      },
+      "id": "compose_reply",
+      "name": "Compose Booking Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond_out",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek Function Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Booking Tool": {
+      "main": [
+        [
+          {
+            "node": "Compose Booking Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Booking Reply": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Function Request": {
+      "main": [
+        [
+          {
+            "node": "Simulate Booking Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "pinData": {},
+  "versionId": "2f42eef6-5a59-4d07-a57a-6f93eaadf591"
+}

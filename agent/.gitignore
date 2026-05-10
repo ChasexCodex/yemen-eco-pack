@@ -1,0 +1,14 @@
+*.local*
+node_modules/
+
+# Runtime data and secrets
+.env
+.env.*
+!.env.example
+n8n/data/
+
+# Local exports and databases
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+n8n/workflows/exported.json

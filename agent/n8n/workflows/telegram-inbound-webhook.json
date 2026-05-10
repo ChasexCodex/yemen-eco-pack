@@ -1,0 +1,195 @@
+{
+  "id": "3c4ec9a4-4af1-4d55-9ce8-8a5be6c19f31",
+  "name": "Telegram DeepSeek Inbound Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-inbound",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "telegram_webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $json.body?.message;\nif (!message?.chat?.id) {\n  return [];\n}\n\nconst text = (message.text || message.caption || '').trim();\nif (!text) {\n  return [];\n}\n\nreturn [{\n  json: {\n    chat_id: String(message.chat.id),\n    user_text: text,\n    telegram_date: message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString(),\n    telegram_message_id: message.message_id || null,\n    from: {\n      id: message.from?.id ? String(message.from.id) : null,\n      username: message.from?.username || null,\n      first_name: message.from?.first_name || null\n    }\n  }\n}];"
+      },
+      "id": "extract_message",
+      "name": "Extract Telegram Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst dbPath = '/home/node/.n8n/telegram-message-db.json';\nconst timeZone = 'Asia/Aden';\nconst now = new Date();\nconst nowIso = now.toISOString();\n\nfunction loadDb() {\n  try {\n    const parsed = JSON.parse(fs.readFileSync(dbPath, 'utf8'));\n    if (parsed && typeof parsed === 'object') return parsed;\n  } catch {}\n  return { schema: 2, chats: {} };\n}\n\nfunction saveDb(db) {\n  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));\n}\n\nfunction localParts(date) {\n  const parts = new Intl.DateTimeFormat('en-CA', {\n    timeZone,\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n    hour: '2-digit',\n    minute: '2-digit',\n    hourCycle: 'h23'\n  }).formatToParts(date);\n  const out = {};\n  for (const part of parts) out[part.type] = part.value;\n  return out;\n}\n\nfunction localDateKey(date) {\n  const p = localParts(date);\n  return p.year + '-' + p.month + '-' + p.day;\n}\n\nfunction localStamp(value) {\n  const date = value ? new Date(value) : now;\n  const p = localParts(Number.isNaN(date.getTime()) ? now : date);\n  return p.year + '-' + p.month + '-' + p.day + ' ' + p.hour + ':' + p.minute + ' ' + timeZone;\n}\n\nfunction ageMs(value) {\n  const date = new Date(value || 0);\n  return Number.isNaN(date.getTime()) ? Infinity : now.getTime() - date.getTime();\n}\n\nfunction isRecentMessage(message) {\n  return ageMs(message.at || message.ts || message.telegram_at) <= 72 * 60 * 60 * 1000;\n}\n\nfunction isUsableBooking(booking) {\n  if (!booking) return false;\n  if (ageMs(booking.updated_at || booking.created_at) > 72 * 60 * 60 * 1000) return false;\n  if (booking.date && booking.date < localDateKey(now)) return false;\n  return true;\n}\n\nconst db = loadDb();\ndb.schema = 2;\ndb.chats = db.chats && typeof db.chats === 'object' ? db.chats : {};\n\nconst chatId = $json.chat_id;\nconst chat = db.chats[chatId] || { messages: [], booking_state: null };\nchat.messages = Array.isArray(chat.messages) ? chat.messages : [];\n\nchat.messages.push({\n  role: 'user',\n  content: $json.user_text,\n  at: nowIso,\n  telegram_at: $json.telegram_date,\n  message_id: $json.telegram_message_id || null,\n  from: $json.from || null\n});\n\nchat.messages = chat.messages\n  .filter((message) => ageMs(message.at || message.ts || message.telegram_at) <= 30 * 24 * 60 * 60 * 1000)\n  .slice(-200);\n\nif (!isUsableBooking(chat.booking_state)) {\n  chat.booking_state = null;\n}\n\ndb.chats[chatId] = chat;\nsaveDb(db);\n\nconst recentMessages = chat.messages\n  .filter(isRecentMessage)\n  .slice(-16)\n  .map((message) => ({\n    role: message.role === 'assistant' ? 'assistant' : 'user',\n    content: '[' + localStamp(message.at || message.telegram_at) + '] ' + String(message.content || '')\n  }));\n\nconst bookingIntent = /\\b(book|booking|appointment|reserve|reservation|schedule|slot|available|availability|confirm)\\b/i.test($json.user_text);\nconst currentDate = localDateKey(now);\nconst currentStamp = localStamp(nowIso);\nconst bookingState = chat.booking_state ? JSON.stringify(chat.booking_state) : 'none';\n\nconst system = [\n  'You are InterAI on Telegram. Be concise and practical.',\n  'Current local date/time is ' + currentStamp + '. Today is ' + currentDate + '. Time zone is ' + timeZone + ' (UTC+03).',\n  'Resolve relative dates such as today and tomorrow using only the current local date above, never old chat context.',\n  'Only use recent messages included in this prompt. Older history is deliberately excluded and must not affect relative dates.',\n  'Current active booking state: ' + bookingState + '.',\n  'For any booking, scheduling, slot, availability, or confirmation request, call the manage_booking tool. Do not invent booking confirmations in plain text.',\n  'If required booking details are missing, ask for only the missing details.'\n].join(' ');\n\nreturn [{\n  json: {\n    chat_id: chatId,\n    db_path: dbPath,\n    user_text: $json.user_text,\n    now_iso: nowIso,\n    current_date: currentDate,\n    timezone: timeZone,\n    booking_intent: bookingIntent,\n    booking_state: chat.booking_state,\n    messages: [\n      { role: 'system', content: system },\n      ...recentMessages\n    ],\n    tool_choice: bookingIntent ? { type: 'function', function: { name: 'manage_booking' } } : 'auto',\n    tools: [\n      {\n        type: 'function',\n        function: {\n          name: 'manage_booking',\n          description: 'Resolve and manage booking, appointment, scheduling, availability, or confirmation requests using current local date and active booking state.',\n          parameters: {\n            type: 'object',\n            properties: {\n              action: { type: 'string', enum: ['check', 'book', 'confirm', 'cancel', 'ask_details'] },\n              service: { type: 'string', description: 'The service or appointment type the user wants.' },\n              date: { type: 'string', description: 'Absolute date in YYYY-MM-DD. Resolve today/tomorrow relative to the provided current date.' },\n              time: { type: 'string', description: 'Preferred time in HH:mm 24-hour format.' },\n              notes: { type: 'string', description: 'Useful details from the user request.' }\n            }\n          }\n        }\n      }\n    ]\n  }\n}];"
+      },
+      "id": "prepare_telegram_context",
+      "name": "Prepare Telegram Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.DEEPSEEK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": $env.DEEPSEEK_MODEL || \"deepseek-chat\", \"messages\": $json.messages, \"tools\": $json.tools, \"tool_choice\": $json.tool_choice, \"temperature\": 0.2 } }}",
+        "options": {}
+      },
+      "id": "deepseek_reply",
+      "name": "DeepSeek Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst prev = $('Prepare Telegram Context').first().json;\nconst now = new Date(prev.now_iso || new Date().toISOString());\nconst nowIso = now.toISOString();\nconst timeZone = prev.timezone || 'Asia/Aden';\n\nfunction loadDb() {\n  try {\n    const parsed = JSON.parse(fs.readFileSync(prev.db_path, 'utf8'));\n    if (parsed && typeof parsed === 'object') return parsed;\n  } catch {}\n  return { schema: 2, chats: {} };\n}\n\nfunction saveDb(db) {\n  fs.writeFileSync(prev.db_path, JSON.stringify(db, null, 2));\n}\n\nfunction localParts(date) {\n  const parts = new Intl.DateTimeFormat('en-CA', {\n    timeZone,\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n    hour: '2-digit',\n    minute: '2-digit',\n    hourCycle: 'h23'\n  }).formatToParts(date);\n  const out = {};\n  for (const part of parts) out[part.type] = part.value;\n  return out;\n}\n\nfunction localDateKey(date) {\n  const p = localParts(date);\n  return p.year + '-' + p.month + '-' + p.day;\n}\n\nfunction addDays(dateKey, days) {\n  const [year, month, day] = dateKey.split('-').map(Number);\n  const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));\n  return date.toISOString().slice(0, 10);\n}\n\nfunction ageMs(value) {\n  const date = new Date(value || 0);\n  return Number.isNaN(date.getTime()) ? Infinity : now.getTime() - date.getTime();\n}\n\nfunction usableBooking(booking) {\n  if (!booking) return null;\n  if (ageMs(booking.updated_at || booking.created_at) > 72 * 60 * 60 * 1000) return null;\n  if (booking.date && booking.date < prev.current_date) return null;\n  return booking;\n}\n\nfunction normalizeDate(value) {\n  if (!value) return null;\n  const raw = String(value).trim();\n  const lower = raw.toLowerCase();\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return raw;\n  if (lower.includes('day after tomorrow') || lower.includes('after tomorrow')) return addDays(prev.current_date, 2);\n  if (lower.includes('tomorrow')) return addDays(prev.current_date, 1);\n  if (lower.includes('today')) return prev.current_date;\n  return raw;\n}\n\nfunction normalizeTime(value) {\n  if (!value) return null;\n  const raw = String(value).trim();\n  const match = raw.match(/^(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?$/i);\n  if (!match) return raw;\n  let hour = Number(match[1]);\n  const minute = match[2] || '00';\n  const suffix = (match[3] || '').toLowerCase();\n  if (suffix === 'pm' && hour < 12) hour += 12;\n  if (suffix === 'am' && hour === 12) hour = 0;\n  return String(hour).padStart(2, '0') + ':' + minute;\n}\n\nfunction parseToolArgs(toolCall) {\n  if (!toolCall?.arguments) return {};\n  try {\n    return JSON.parse(toolCall.arguments);\n  } catch {\n    return {};\n  }\n}\n\nconst db = loadDb();\ndb.schema = 2;\ndb.chats = db.chats && typeof db.chats === 'object' ? db.chats : {};\nconst chat = db.chats[prev.chat_id] || { messages: [], booking_state: null };\nchat.messages = Array.isArray(chat.messages) ? chat.messages : [];\n\nconst message = $json.choices?.[0]?.message || {};\nconst tool = message.tool_calls?.[0]?.function || null;\nlet reply = String(message.content || '').trim();\nlet mode = 'chat';\nlet booking = null;\n\nif (tool?.name === 'manage_booking') {\n  mode = 'booking_tool';\n  const active = usableBooking(chat.booking_state || prev.booking_state);\n  const args = parseToolArgs(tool);\n  const action = args.action || (/\\bconfirm\\b/i.test(prev.user_text || '') ? 'confirm' : 'check');\n  const service = args.service || active?.service || 'general consultation';\n  const date = normalizeDate(args.date) || active?.date || null;\n  const time = normalizeTime(args.time) || active?.time || null;\n  const missing = [];\n  if (!date) missing.push('date');\n  if (!time) missing.push('time');\n\n  if (action === 'cancel') {\n    chat.booking_state = null;\n    reply = 'Cancelled the active booking context. Tell me the service, date, and time when you want to start again.';\n  } else if (missing.length > 0) {\n    chat.booking_state = {\n      status: 'needs_details',\n      service,\n      date,\n      time,\n      notes: args.notes || null,\n      updated_at: nowIso\n    };\n    reply = 'I can help book ' + service + '. Please provide the missing ' + missing.join(' and ') + '.';\n  } else {\n    const booked = action === 'book' || action === 'confirm';\n    booking = {\n      status: booked ? 'booked' : 'available',\n      service,\n      date,\n      time,\n      confirmation_code: booked ? 'BK-' + Math.random().toString(36).slice(2, 8).toUpperCase() : null,\n      updated_at: nowIso\n    };\n    chat.booking_state = booking;\n    reply = booked\n      ? 'Confirmed. Your ' + service + ' is booked for ' + date + ' at ' + time + '. Confirmation code: ' + booking.confirmation_code + '.'\n      : 'Yes, ' + date + ' at ' + time + ' is available for ' + service + '. Reply \"confirm\" to book it.';\n  }\n}\n\nif (!reply) {\n  reply = 'Sorry, I could not generate a response. Please try again.';\n}\n\nchat.messages.push({\n  role: 'assistant',\n  content: reply,\n  at: nowIso,\n  mode,\n  booking\n});\nchat.messages = chat.messages\n  .filter((message) => ageMs(message.at || message.ts || message.telegram_at) <= 30 * 24 * 60 * 60 * 1000)\n  .slice(-200);\n\ndb.chats[prev.chat_id] = chat;\nsaveDb(db);\n\nreturn [{\n  json: {\n    chat_id: prev.chat_id,\n    text: reply,\n    mode,\n    booking\n  }\n}];"
+      },
+      "id": "handle_deepseek_response",
+      "name": "Handle DeepSeek Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const escapeHtml = (s) => s\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\n\nlet text = String($json.text || '');\ntext = escapeHtml(text);\n\ntext = text.replace(/```([\\s\\S]*?)```/g, (_m, p1) => `<pre><code>${p1.trim()}</code></pre>`);\ntext = text.replace(/`([^`]+)`/g, '<code>$1</code>');\ntext = text.replace(/\\*\\*([^*]+)\\*\\*/g, '<b>$1</b>');\ntext = text.replace(/__([^_]+)__/g, '<b>$1</b>');\ntext = text.replace(/(^|\\s)\\*([^*]+)\\*(?=\\s|$)/g, '$1<i>$2</i>');\ntext = text.replace(/(^|\\s)_([^_]+)_(?=\\s|$)/g, '$1<i>$2</i>');\ntext = text.replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^\\s)]+)\\)/g, '<a href=\"$2\">$1</a>');\ntext = text.replace(/^#{1,6}\\s+(.+)$/gm, '<b>$1</b>');\ntext = text.replace(/^-\\s+/gm, '• ');\n\nreturn [{\n  json: {\n    chat_id: $json.chat_id,\n    text: text\n  }\n}];"
+      },
+      "id": "format_markdown",
+      "name": "Format Telegram Markdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"chat_id\": $json.chat_id, \"text\": $json.text, \"parse_mode\": \"HTML\", \"disable_web_page_preview\": true } }}",
+        "options": {}
+      },
+      "id": "telegram_send",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Telegram Markdown": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Handle DeepSeek Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Context": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle DeepSeek Response": {
+      "main": [
+        [
+          {
+            "node": "Format Telegram Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "pinData": {},
+  "versionId": "baf9c70a-f932-43cf-9798-15f85e12fd59"
+}

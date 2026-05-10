@@ -1,0 +1,155 @@
+{
+  "id": "f0d4ff9f-5f42-48bf-a251-7f42d8611c40",
+  "name": "Twilio DeepSeek Phone Agent",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "twilio-voice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "twilio_voice_webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || {};\nconst speech = (body.SpeechResult || '').trim();\nconst from = body.From || 'unknown caller';\nconst system = 'You are a concise phone voice assistant for InterAI. Keep replies short, natural, and easy to understand over the phone. Ask one question at a time.';\nconst user = speech || 'The caller just connected. Greet them and ask how you can help.';\nreturn [{ json: { from, speech, messages: [ { role: 'system', content: system }, { role: 'user', content: user } ] } }];"
+      },
+      "id": "prepare_phone_prompt",
+      "name": "Prepare Phone Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.DEEPSEEK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": $env.DEEPSEEK_MODEL || \"deepseek-chat\", \"messages\": $json.messages, \"temperature\": 0.4 } }}",
+        "options": {}
+      },
+      "id": "deepseek_phone_reply",
+      "name": "DeepSeek Phone Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content || 'I am sorry, I did not catch that. How can I help?';\nconst say = String(raw).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])).slice(0, 1200);\nconst action = ($env.WEBHOOK_URL || 'https://ai.elyasamri.com') + '/webhook/f0d4ff9f-5f42-48bf-a251-7f42d8611c40/webhook/twilio-voice';\nconst twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n' +\n  '<Response>\\n' +\n  '  <Say voice=\"alice\">' + say + '</Say>\\n' +\n  '  <Gather input=\"speech\" action=\"' + action + '\" method=\"POST\" speechTimeout=\"auto\" timeout=\"6\">\\n' +\n  '    <Say voice=\"alice\">You can reply after the beep.</Say>\\n' +\n  '  </Gather>\\n' +\n  '  <Say voice=\"alice\">Goodbye.</Say>\\n' +\n  '</Response>';\nreturn [{ json: { twiml } }];"
+      },
+      "id": "compose_twiml",
+      "name": "Compose TwiML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{$json.twiml}}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond_twiml",
+      "name": "Respond TwiML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Prepare Phone Prompt": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek Phone Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Phone Reply": {
+      "main": [
+        [
+          {
+            "node": "Compose TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose TwiML": {
+      "main": [
+        [
+          {
+            "node": "Respond TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Phone Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "9b5da8d8-f786-45c4-9258-e295072197a5"
+}
