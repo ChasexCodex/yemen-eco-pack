@@ -5,6 +5,16 @@ import { dbPool } from "@/lib/server/db";
 import { parseSiteSettingsInput } from "@/lib/server/models";
 import { serializeSiteSettings } from "@/lib/server/serializers";
 
+const fallbackSettings = {
+  logo_url: "/logo.png",
+  contact_email: "info@biopak.ye",
+  contact_phone: "+967-1-555-0100",
+  address_en: "Sana'a, Yemen",
+  address_ar: "صنعاء، اليمن",
+  tagline_en: "Sustainable solutions for a greener Yemen.",
+  tagline_ar: "حلول مستدامة من أجل يمن أكثر اخضرارا.",
+};
+
 async function getSettingsRow() {
   await ensureDatabaseReady();
 
@@ -19,11 +29,15 @@ async function getSettingsRow() {
 }
 
 export async function GET() {
-  const row = await getSettingsRow();
-  if (!row) {
-    return NextResponse.json({ error: "Settings not found" }, { status: 404 });
+  try {
+    const row = await getSettingsRow();
+    if (!row) {
+      return NextResponse.json({ error: "Settings not found" }, { status: 404 });
+    }
+    return NextResponse.json(serializeSiteSettings(row));
+  } catch {
+    return NextResponse.json(fallbackSettings);
   }
-  return NextResponse.json(serializeSiteSettings(row));
 }
 
 export async function PATCH(request: NextRequest) {

@@ -4,6 +4,35 @@ import { ensureDatabaseReady } from "@/lib/server/bootstrap-db";
 import { dbPool } from "@/lib/server/db";
 import { parsePositiveInt, parseProductInput } from "@/lib/server/models";
 import { serializeProduct } from "@/lib/server/serializers";
+import { getProductById as getFallbackProductById } from "@/lib/products";
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function serializeFallbackProduct(id: number) {
+  const product = getFallbackProductById(id);
+  if (!product) return null;
+  return {
+    id: product.id,
+    slug: slugify(product.name),
+    name_en: product.name,
+    name_ar: product.name,
+    description_en: product.description,
+    description_ar: product.description,
+    price: product.price,
+    unit_en: product.unit,
+    unit_ar: product.unit,
+    image_url: product.image,
+    category_en: product.category,
+    category_ar: product.category,
+    in_stock: product.inStock,
+    created_at: new Date(0).toISOString(),
+  };
+}
 
 async function parseId(params: Promise<{ id: string }>) {
   const { id } = await params;
@@ -19,24 +48,32 @@ export async function GET(
     return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
   }
 
-  await ensureDatabaseReady();
+  try {
+    await ensureDatabaseReady();
 
-  const result = await dbPool.query(
-    `
-      SELECT
-        id, slug, name_en, name_ar, description_en, description_ar,
-        price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at
-      FROM products
-      WHERE id = $1;
-    `,
-    [id],
-  );
+    const result = await dbPool.query(
+      `
+        SELECT
+          id, slug, name_en, name_ar, description_en, description_ar,
+          price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at
+        FROM products
+        WHERE id = $1;
+      `,
+      [id],
+    );
 
-  if (result.rows.length === 0) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(serializeProduct(result.rows[0]));
+  } catch {
+    const fallback = serializeFallbackProduct(id);
+    if (!fallback) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+    return NextResponse.json(fallback);
   }
-
-  return NextResponse.json(serializeProduct(result.rows[0]));
 }
 
 export async function PATCH(
