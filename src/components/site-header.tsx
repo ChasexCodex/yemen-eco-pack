@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Show, UserButton, useClerk } from "@clerk/nextjs";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLanguage, useSiteSettings, useTheme } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
@@ -71,7 +72,11 @@ export function SiteHeader() {
             className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-card"
             aria-label={t("nav.theme")}
           >
-            {theme === "dark" ? "☀" : "☾"}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Moon className="h-4 w-4" aria-hidden="true" />
+            )}
           </button>
           <Show when="signed-out">
             <Link href="/sign-in" className="text-sm font-medium hover:text-primary">
@@ -104,7 +109,11 @@ export function SiteHeader() {
             className="rounded-lg border border-border px-2 py-1 text-sm"
             aria-label={t("nav.theme")}
           >
-            {theme === "dark" ? "☀" : "☾"}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Moon className="h-4 w-4" aria-hidden="true" />
+            )}
           </button>
           <button
             type="button"

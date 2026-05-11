@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
@@ -52,7 +53,7 @@ export default function ContactPage() {
             <div className="flex flex-col gap-8 rounded-3xl border border-border bg-card p-8">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  📍
+                  <MapPin className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div>
                   <h2 className="mb-1 text-lg font-bold text-foreground">
@@ -64,7 +65,7 @@ export default function ContactPage() {
 
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  ✉️
+                  <Mail className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div>
                   <h2 className="mb-1 text-lg font-bold text-foreground">
@@ -81,7 +82,7 @@ export default function ContactPage() {
 
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  📞
+                  <Phone className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div>
                   <h2 className="mb-1 text-lg font-bold text-foreground">

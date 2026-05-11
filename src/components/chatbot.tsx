@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { MessageCircle, X } from "lucide-react";
 import { useLanguage } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
 import type { ChatMessage } from "@/lib/types";
@@ -70,7 +71,7 @@ export function Chatbot() {
               className="rounded-full border border-border px-2 py-1 text-sm"
               aria-label={t("chatbot.close")}
             >
-              ×
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </header>
 
@@ -125,7 +126,11 @@ export function Chatbot() {
         }`}
         aria-label={open ? t("chatbot.close") : t("chatbot.open")}
       >
-        {open ? "×" : "💬"}
+        {open ? (
+          <X className="h-6 w-6" aria-hidden="true" />
+        ) : (
+          <MessageCircle className="h-6 w-6" aria-hidden="true" />
+        )}
       </button>
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Leaf } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/app-providers";
 import { ProductCard } from "@/components/product-card";
@@ -80,8 +81,8 @@ export function HomeContent() {
 
       <section className="border-y border-border bg-card py-20">
         <div className="container grid items-center gap-8 md:grid-cols-[auto_1fr]">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-4xl">
-            🌿
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Leaf className="h-10 w-10" aria-hidden="true" />
           </div>
           <div>
             <h2 className="mb-4 text-3xl font-bold">{t("home.whyBiodegradable")}</h2>
