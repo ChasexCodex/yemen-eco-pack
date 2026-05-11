@@ -1,12 +1,24 @@
+"use client";
+
 import { SiteShell } from "@/components/site-shell";
+import { useLanguage } from "@/components/app-providers";
+import type { Lang } from "@/lib/types";
 
 const materials = [
   {
     id: "bagasse",
-    title: "Bagasse (Sugarcane Fiber)",
-    what: "Bagasse is the fibrous residue that remains after sugarcane stalks are crushed to extract their juice. It is a highly renewable resource.",
-    benefits:
-      "Compostable, sturdy, and tolerates both hot and cold temperatures. Utilizing bagasse prevents it from being burned as agricultural waste.",
+    title: {
+      en: "Bagasse (Sugarcane Fiber)",
+      ar: "تفل قصب السكر (باغاس)",
+    },
+    what: {
+      en: "Bagasse is the fibrous residue that remains after sugarcane stalks are crushed to extract their juice. It is a highly renewable resource.",
+      ar: "تفل قصب السكر هو البقايا الليفية التي تبقى بعد سحق سيقان قصب السكر لاستخراج عصيرها. إنه مورد متجدد للغاية.",
+    },
+    benefits: {
+      en: "Compostable, sturdy, and tolerates both hot and cold temperatures. Utilizing bagasse prevents it from being burned as agricultural waste.",
+      ar: "قابل للتسميد، قوي، ويتحمل درجات الحرارة الساخنة والباردة. استخدام تفل قصب السكر يمنع حرقه كنفايات زراعية.",
+    },
     links: [
       {
         title: "Bagasse LCA",
@@ -20,10 +32,18 @@ const materials = [
   },
   {
     id: "pla",
-    title: "PLA (Polylactic Acid)",
-    what: "PLA is a bioplastic derived from renewable resources like corn starch or sugarcane.",
-    benefits:
-      "Fully compostable in industrial facilities. It requires significantly less energy to produce compared to conventional plastics and emits fewer greenhouse gases.",
+    title: {
+      en: "PLA (Polylactic Acid)",
+      ar: "حمض عديد اللبنيك (PLA)",
+    },
+    what: {
+      en: "PLA is a bioplastic derived from renewable resources like corn starch or sugarcane.",
+      ar: "PLA هو بلاستيك حيوي مشتق من موارد متجددة مثل نشا الذرة أو قصب السكر.",
+    },
+    benefits: {
+      en: "Fully compostable in industrial facilities. It requires significantly less energy to produce compared to conventional plastics and emits fewer greenhouse gases.",
+      ar: "قابل للتحلل بالكامل في منشآت التسميد الصناعية. يتطلب إنتاجه طاقة أقل بكثير مقارنة بالبلاستيك التقليدي وينبعث منه غازات دفيئة أقل.",
+    },
     links: [
       {
         title: "PLA biodegradation",
@@ -37,10 +57,18 @@ const materials = [
   },
   {
     id: "kraft",
-    title: "Kraft Paper",
-    what: "Kraft paper is produced from chemical pulp produced in the kraft process. It is stronger than standard paper.",
-    benefits:
-      "100% biodegradable and recyclable. Unbleached kraft paper involves fewer chemicals and is environmentally benign.",
+    title: {
+      en: "Kraft Paper",
+      ar: "ورق الكرافت",
+    },
+    what: {
+      en: "Kraft paper is produced from chemical pulp produced in the kraft process. It is stronger than standard paper.",
+      ar: "يتم إنتاج ورق الكرافت من اللب الكيميائي المنتج في عملية الكرافت. وهو أقوى من الورق القياسي.",
+    },
+    benefits: {
+      en: "100% biodegradable and recyclable. Unbleached kraft paper involves fewer chemicals and is environmentally benign.",
+      ar: "قابل للتحلل وإعادة التدوير بالكامل. ورق الكرافت غير المبيض يستخدم مواد كيميائية أقل ويعد خيارا صديقا للبيئة.",
+    },
     links: [
       {
         title: "Kraft paper environmental impact",
@@ -54,10 +82,18 @@ const materials = [
   },
   {
     id: "pbat",
-    title: "Compostable Bioplastics (PBAT/PLA blends)",
-    what: "Blends of PLA and PBAT create flexible, durable bioplastics used for items like trash bags.",
-    benefits:
-      "Designed to biodegrade in composting conditions, offering a sustainable alternative to conventional polyethylene bags without leaving microplastics.",
+    title: {
+      en: "Compostable Bioplastics (PBAT/PLA blends)",
+      ar: "البلاستيك الحيوي القابل للتسميد (مزيج PBAT و PLA)",
+    },
+    what: {
+      en: "Blends of PLA and PBAT create flexible, durable bioplastics used for items like trash bags.",
+      ar: "تنتج مزيجات PLA و PBAT بلاستيكا حيويا مرنا ومتين يستخدم في منتجات مثل أكياس النفايات.",
+    },
+    benefits: {
+      en: "Designed to biodegrade in composting conditions, offering a sustainable alternative to conventional polyethylene bags without leaving microplastics.",
+      ar: "مصمم للتحلل في ظروف التسميد، ويوفر بديلا مستداما لأكياس البولي إيثيلين التقليدية دون ترك جسيمات بلاستيكية دقيقة.",
+    },
     links: [
       {
         title: "PBAT compostability",
@@ -71,15 +107,20 @@ const materials = [
   },
 ];
 
+function localized(value: Record<Lang, string>, lang: Lang) {
+  return value[lang];
+}
+
 export default function MaterialsPage() {
+  const { lang, t } = useLanguage();
+
   return (
     <SiteShell>
       <section className="border-b border-border bg-primary/5 py-20">
         <div className="container max-w-4xl text-center">
-          <h1 className="mb-6 text-4xl font-bold md:text-5xl">Our Materials</h1>
+          <h1 className="mb-6 text-4xl font-bold md:text-5xl">{t("materials.title")}</h1>
           <p className="text-xl text-muted">
-            Learn about the plant-based materials that make our packaging
-            sustainable.
+            {t("materials.subtitle")}
           </p>
         </div>
       </section>
@@ -89,17 +130,17 @@ export default function MaterialsPage() {
           {materials.map((material) => (
             <article key={material.id} id={material.id} className="scroll-mt-32">
               <h2 className="mb-6 text-3xl font-bold text-primary">
-                {material.title}
+                {localized(material.title, lang)}
               </h2>
 
               <p className="mb-4 text-lg font-medium text-foreground">
-                {material.what}
+                {localized(material.what, lang)}
               </p>
-              <p className="mb-8 text-lg text-muted">{material.benefits}</p>
+              <p className="mb-8 text-lg text-muted">{localized(material.benefits, lang)}</p>
 
               <div className="rounded-2xl border border-border bg-card p-6">
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted">
-                  Research & References
+                  {t("materials.references")}
                 </h3>
                 <ul className="space-y-3">
                   {material.links.map((link) => (

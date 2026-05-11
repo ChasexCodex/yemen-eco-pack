@@ -11,6 +11,17 @@
   --accent: #b7633b;
 }
 
+.dark {
+  --background: #101812;
+  --foreground: #eef6ef;
+  --muted: #a7b9ad;
+  --card: #172219;
+  --border: #2b3b30;
+  --primary: #7ec7a4;
+  --primary-foreground: #0f1a12;
+  --accent: #e0a06f;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -38,4 +49,18 @@ a {
 .container {
   width: min(1180px, 100% - 2rem);
   margin-inline: auto;
+}
+
+input,
+textarea,
+select {
+  color: var(--foreground);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
