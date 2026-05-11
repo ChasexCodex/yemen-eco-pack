@@ -37,7 +37,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"model\": $env.DEEPSEEK_MODEL || \"deepseek-chat\", \"messages\": [ { \"role\": \"system\", \"content\": \"You are InterAI. Be concise and practical.\" }, { \"role\": \"user\", \"content\": $json.body?.message || \"Hello\" } ] } }}",
+        "jsonBody": "={{ (() => { const body = $json.body || {}; const language = body.language === 'ar' ? 'ar' : 'en'; const incoming = Array.isArray(body.messages) ? body.messages : []; const fallbackMessage = String(body.message || '').trim(); const userMessage = fallbackMessage || (incoming.slice().reverse().find((m) => m && m.role === 'user' && typeof m.content === 'string')?.content || 'Hello'); const trimmed = incoming.filter((m) => m && typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant' || m.role === 'system')).slice(-12).map((m) => ({ role: m.role, content: String(m.content).trim() })).filter((m) => m.content.length > 0); const systemEn = 'You are Mira, customer support for BioPak Yemen. Be concise, practical, and natural. Keep replies to 1-3 short sentences unless the user asks for detail. Help with biodegradable packaging products, materials, orders, and sustainability. If exact stock, custom pricing, or freight details are unknown, say so and direct to info@biopak.ye or the contact form.'; const systemAr = 'أنتِ ميرا، موظفة دعم عملاء لشركة BioPak اليمن. كوني مختصرة وعملية وطبيعية. اجعلي الردود من جملة إلى ثلاث جمل إلا إذا طلب المستخدم تفاصيل. ساعدي في منتجات التغليف القابل للتحلل والمواد والطلبات والاستدامة. إذا لم تتوفر معلومات دقيقة عن المخزون أو الأسعار الخاصة أو الشحن فقولي ذلك ووجهي المستخدم إلى info@biopak.ye أو نموذج التواصل.'; const system = language === 'ar' ? systemAr : systemEn; const messages = [{ role: 'system', content: system }]; if (trimmed.length > 0) { messages.push(...trimmed); } else { messages.push({ role: 'user', content: userMessage }); } return { model: $env.DEEPSEEK_MODEL || 'deepseek-chat', temperature: 0.3, max_tokens: 500, messages }; })() }}",
         "options": {}
       },
       "id": "deepseek_chat_completion",
@@ -45,14 +45,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        540,
+        560,
         300
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"reply\": $json.choices?.[0]?.message?.content || \"No text response returned\", \"provider\": \"deepseek\" } }}",
+        "responseBody": "={{ { \"reply\": String($json.choices?.[0]?.message?.content || '').trim() || \"Sorry, I couldn't generate a reply right now.\", \"provider\": \"deepseek\" } }}",
         "options": {}
       },
       "id": "respond_out",
@@ -60,7 +60,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        840,
+        900,
         300
       ]
     }
@@ -94,3 +94,4 @@
   "pinData": {},
   "versionId": "74f0b3e2-f0dd-4c70-9bde-f6d4c5f1d145"
 }
+
