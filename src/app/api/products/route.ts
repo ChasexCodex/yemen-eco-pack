@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/server/auth";
 import { ensureDatabaseReady } from "@/lib/server/bootstrap-db";
 import { dbPool } from "@/lib/server/db";
+import { isDbUnavailableError } from "@/lib/server/db-errors";
 import { parseProductInput } from "@/lib/server/models";
 import { serializeProduct } from "@/lib/server/serializers";
 import { products as fallbackProducts } from "@/lib/products";
@@ -62,9 +63,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  await ensureDatabaseReady();
-
   try {
+    await ensureDatabaseReady();
+
     const result = await dbPool.query(
       `
         INSERT INTO products (
@@ -98,6 +99,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(serializeProduct(result.rows[0]), { status: 201 });
   } catch (error: unknown) {
     const maybePgError = error as { code?: string };
+    if (isDbUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Database unavailable. Admin product updates are temporarily disabled." },
+        { status: 503 },
+      );
+    }
     if (maybePgError.code === "23505") {
       return NextResponse.json(
         { error: "Product slug already exists" },

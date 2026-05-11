@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/server/auth";
 import { ensureDatabaseReady } from "@/lib/server/bootstrap-db";
 import { dbPool } from "@/lib/server/db";
+import { isDbUnavailableError } from "@/lib/server/db-errors";
 import { parsePositiveInt, parseProductInput } from "@/lib/server/models";
 import { serializeProduct } from "@/lib/server/serializers";
 import { getProductById as getFallbackProductById } from "@/lib/products";
@@ -96,9 +97,9 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  await ensureDatabaseReady();
-
   try {
+    await ensureDatabaseReady();
+
     const result = await dbPool.query(
       `
         UPDATE products
@@ -144,6 +145,12 @@ export async function PATCH(
     return NextResponse.json(serializeProduct(result.rows[0]));
   } catch (error: unknown) {
     const maybePgError = error as { code?: string };
+    if (isDbUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Database unavailable. Admin product updates are temporarily disabled." },
+        { status: 503 },
+      );
+    }
     if (maybePgError.code === "23505") {
       return NextResponse.json(
         { error: "Product slug already exists" },
@@ -168,21 +175,31 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
   }
 
-  await ensureDatabaseReady();
+  try {
+    await ensureDatabaseReady();
 
-  const result = await dbPool.query(
-    `
-      DELETE FROM products
-      WHERE id = $1
-      RETURNING id;
-    `,
-    [id],
-  );
+    const result = await dbPool.query(
+      `
+        DELETE FROM products
+        WHERE id = $1
+        RETURNING id;
+      `,
+      [id],
+    );
 
-  if (result.rows.length === 0) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error: unknown) {
+    if (isDbUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Database unavailable. Admin product updates are temporarily disabled." },
+        { status: 503 },
+      );
+    }
+    throw error;
   }
-
-  return new NextResponse(null, { status: 204 });
 }
 

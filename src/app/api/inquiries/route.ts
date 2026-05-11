@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/server/auth";
 import { ensureDatabaseReady } from "@/lib/server/bootstrap-db";
 import { dbPool } from "@/lib/server/db";
+import { isDbUnavailableError } from "@/lib/server/db-errors";
 import { parseInquiryInput } from "@/lib/server/models";
 import { serializeInquiry } from "@/lib/server/serializers";
 
@@ -11,15 +12,22 @@ export async function GET() {
     return adminResponse;
   }
 
-  await ensureDatabaseReady();
+  try {
+    await ensureDatabaseReady();
 
-  const result = await dbPool.query(`
-    SELECT id, name, email, message, page, created_at, resolved, reply
-    FROM inquiries
-    ORDER BY created_at DESC;
-  `);
+    const result = await dbPool.query(`
+      SELECT id, name, email, message, page, created_at, resolved, reply
+      FROM inquiries
+      ORDER BY created_at DESC;
+    `);
 
-  return NextResponse.json(result.rows.map(serializeInquiry));
+    return NextResponse.json(result.rows.map(serializeInquiry));
+  } catch (error: unknown) {
+    if (isDbUnavailableError(error)) {
+      return NextResponse.json([]);
+    }
+    throw error;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -29,17 +37,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  await ensureDatabaseReady();
+  try {
+    await ensureDatabaseReady();
 
-  const result = await dbPool.query(
-    `
-      INSERT INTO inquiries (name, email, message, page)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, name, email, message, page, created_at, resolved, reply;
-    `,
-    [parsed.data.name, parsed.data.email, parsed.data.message, parsed.data.page ?? null],
-  );
+    const result = await dbPool.query(
+      `
+        INSERT INTO inquiries (name, email, message, page)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, name, email, message, page, created_at, resolved, reply;
+      `,
+      [parsed.data.name, parsed.data.email, parsed.data.message, parsed.data.page ?? null],
+    );
 
-  return NextResponse.json(serializeInquiry(result.rows[0]), { status: 201 });
+    return NextResponse.json(serializeInquiry(result.rows[0]), { status: 201 });
+  } catch (error: unknown) {
+    if (isDbUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Database unavailable. Please try again shortly." },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
 }
 
