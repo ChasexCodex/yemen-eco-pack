@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/components/app-providers";
 import type { Product } from "@/lib/types";
@@ -14,9 +15,11 @@ export function ProductCard({ product }: { product: Product }) {
     <Link href={`/products/${product.id}`} className="group h-full">
       <article className="h-full overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-1 hover:shadow-lg">
         <div className="relative flex aspect-square items-center justify-center border-b border-border bg-white p-6">
-          <img
+          <Image
             src={product.image_url}
             alt={name}
+            width={600}
+            height={600}
             className="h-full w-full object-contain transition group-hover:scale-105"
           />
           <span

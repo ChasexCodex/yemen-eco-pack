@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { Mail, MapPin, Phone } from "lucide-react";
+import { Skeleton } from "@/components/skeleton";
 import { SiteShell } from "@/components/site-shell";
 import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
@@ -9,7 +10,7 @@ import type { Inquiry, InquiryInput } from "@/lib/types";
 
 export default function ContactPage() {
   const { lang, t } = useLanguage();
-  const { settings } = useSiteSettings();
+  const { settings, settingsLoading } = useSiteSettings();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
 
@@ -59,7 +60,11 @@ export default function ContactPage() {
                   <h2 className="mb-1 text-lg font-bold text-foreground">
                     {t("contact.address")}
                   </h2>
-                  <p className="text-lg text-muted">{address}</p>
+                  {settingsLoading ? (
+                    <Skeleton className="h-6 w-40" />
+                  ) : (
+                    <p className="text-lg text-muted">{address}</p>
+                  )}
                 </div>
               </div>
 
@@ -71,12 +76,16 @@ export default function ContactPage() {
                   <h2 className="mb-1 text-lg font-bold text-foreground">
                     {t("contact.email")}
                   </h2>
-                  <a
-                    href={`mailto:${settings.contact_email}`}
-                    className="text-lg text-muted transition-colors hover:text-primary"
-                  >
-                    {settings.contact_email}
-                  </a>
+                  {settingsLoading ? (
+                    <Skeleton className="h-6 w-52" />
+                  ) : (
+                    <a
+                      href={`mailto:${settings.contact_email}`}
+                      className="text-lg text-muted transition-colors hover:text-primary"
+                    >
+                      {settings.contact_email}
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -88,13 +97,17 @@ export default function ContactPage() {
                   <h2 className="mb-1 text-lg font-bold text-foreground">
                     {t("contact.phone")}
                   </h2>
-                  <a
-                    href={`tel:${settings.contact_phone}`}
-                    className="text-lg text-muted transition-colors hover:text-primary"
-                    dir="ltr"
-                  >
-                    {settings.contact_phone}
-                  </a>
+                  {settingsLoading ? (
+                    <Skeleton className="h-6 w-36" />
+                  ) : (
+                    <a
+                      href={`tel:${settings.contact_phone}`}
+                      className="text-lg text-muted transition-colors hover:text-primary"
+                      dir="ltr"
+                    >
+                      {settings.contact_phone}
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

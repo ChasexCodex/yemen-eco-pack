@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   createContext,
   ReactNode,
   useContext,
@@ -9,6 +10,7 @@ import {
   useState,
 } from "react";
 import { translate } from "@/lib/i18n";
+import { useApiSWR } from "@/lib/swr";
 import type { Lang, SiteSettings } from "@/lib/types";
 
 type Theme = "light" | "dark";
@@ -38,6 +40,7 @@ type ThemeContextValue = {
 
 type SettingsContextValue = {
   settings: SiteSettings;
+  settingsLoading: boolean;
   refreshSettings: () => Promise<void>;
 };
 
@@ -57,18 +60,14 @@ function readStoredTheme(): Theme {
   return saved === "dark" ? "dark" : "light";
 }
 
-async function fetchSettings(): Promise<SiteSettings> {
-  const response = await fetch("/api/settings", { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error("Unable to load site settings");
-  }
-  return response.json() as Promise<SiteSettings>;
-}
-
 export function AppProviders({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => readStoredLang());
   const [theme, setThemeState] = useState<Theme>(() => readStoredTheme());
-  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
+  const {
+    data: settingsData,
+    isLoading: settingsLoading,
+    mutate: mutateSettings,
+  } = useApiSWR<SiteSettings>("/api/settings");
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -81,14 +80,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
     window.localStorage.setItem("biopak-theme", theme);
   }, [theme]);
 
-  const refreshSettings = async () => {
-    const nextSettings = await fetchSettings();
-    setSettings(nextSettings);
-  };
+  const settings = settingsData ?? defaultSettings;
 
-  useEffect(() => {
-    fetchSettings().then(setSettings).catch(() => undefined);
-  }, []);
+  const refreshSettings = useCallback(async () => {
+    await mutateSettings();
+  }, [mutateSettings]);
 
   const languageValue = useMemo<LanguageContextValue>(
     () => ({
@@ -110,8 +106,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
   );
 
   const settingsValue = useMemo<SettingsContextValue>(
-    () => ({ settings, refreshSettings }),
-    [settings],
+    () => ({ settings, settingsLoading, refreshSettings }),
+    [settings, settingsLoading, refreshSettings],
   );
 
   return (

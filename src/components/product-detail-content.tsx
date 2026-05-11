@@ -1,35 +1,22 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/app-providers";
-import { apiRequest } from "@/lib/api-client";
+import { Skeleton } from "@/components/skeleton";
+import { useApiSWR } from "@/lib/swr";
 import type { Product } from "@/lib/types";
 
 export function ProductDetailContent({ id }: { id: string }) {
   const { lang, t } = useLanguage();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: product, error, isLoading } = useApiSWR<Product>(
+    id ? `/api/products/${id}` : null,
+  );
 
-  useEffect(() => {
-    apiRequest<Product>(`/api/products/${id}`)
-      .then((item) => {
-        setProduct(item);
-        setError(null);
-      })
-      .catch((caught: unknown) => {
-        setError(caught instanceof Error ? caught.message : "Unable to load product");
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <section className="container py-20">
-        <p className="rounded-xl border border-border bg-card p-6 text-muted">
-          {t("products.loading")}
-        </p>
+      <section className="container py-12 md:py-20">
+        <ProductDetailSkeleton />
       </section>
     );
   }
@@ -38,7 +25,7 @@ export function ProductDetailContent({ id }: { id: string }) {
     return (
       <section className="container py-20">
         <p className="rounded-xl border border-border bg-card p-6 text-red-700">
-          {error ?? "Product not found"}
+          {error?.message ?? "Product not found"}
         </p>
       </section>
     );
@@ -60,9 +47,11 @@ export function ProductDetailContent({ id }: { id: string }) {
 
       <div className="grid gap-14 lg:grid-cols-2">
         <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-3xl border border-border bg-white p-12 shadow-sm">
-          <img
+          <Image
             src={product.image_url}
             alt={name}
+            width={900}
+            height={900}
             className="h-full w-full object-contain"
           />
           {product.in_stock ? (
@@ -105,6 +94,36 @@ export function ProductDetailContent({ id }: { id: string }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function ProductDetailSkeleton() {
+  return (
+    <>
+      <Skeleton className="mb-12 h-5 w-40" />
+      <div className="grid gap-14 lg:grid-cols-2">
+        <div className="rounded-3xl border border-border bg-white p-12 shadow-sm">
+          <Skeleton className="aspect-square w-full rounded-2xl" />
+        </div>
+        <div>
+          <Skeleton className="mb-3 h-4 w-28" />
+          <Skeleton className="mb-4 h-12 w-4/5" />
+          <Skeleton className="mb-10 h-16 w-40" />
+          <Skeleton className="mb-3 h-5 w-full" />
+          <Skeleton className="mb-3 h-5 w-11/12" />
+          <Skeleton className="mb-10 h-5 w-4/5" />
+          <div className="mb-10 rounded-2xl border border-border bg-card p-6">
+            <Skeleton className="mb-4 h-6 w-40" />
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-11/12" />
+              <Skeleton className="h-4 w-10/12" />
+            </div>
+          </div>
+          <Skeleton className="h-12 w-48 rounded-lg" />
+        </div>
+      </div>
+    </>
   );
 }
 

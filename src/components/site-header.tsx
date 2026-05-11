@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Show, UserButton, useClerk } from "@clerk/nextjs";
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLanguage, useSiteSettings, useTheme } from "@/components/app-providers";
-import { apiRequest } from "@/lib/api-client";
+import { Skeleton } from "@/components/skeleton";
+import { useApiSWR } from "@/lib/swr";
 
 const navItems = [
   { href: "/", key: "nav.home" },
@@ -18,16 +20,14 @@ const navItems = [
 export function SiteHeader() {
   const { lang, setLang, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-  const { settings } = useSiteSettings();
+  const { settings, settingsLoading } = useSiteSettings();
   const { signOut } = useClerk();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    apiRequest<{ is_admin: boolean; signed_in: boolean }>("/api/admin/me")
-      .then((status) => setIsAdmin(status.is_admin))
-      .catch(() => setIsAdmin(false));
-  }, []);
+  const { data: adminStatus } = useApiSWR<{ is_admin: boolean; signed_in: boolean }>(
+    "/api/admin/me",
+    { shouldRetryOnError: false },
+  );
+  const isAdmin = adminStatus?.is_admin ?? false;
 
   const toggleLang = () => setLang(lang === "ar" ? "en" : "ar");
   const navLinks = (
@@ -49,12 +49,24 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur">
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <img
-            src={settings.logo_url}
-            alt="BioPak logo"
-            className="h-8 w-8 rounded bg-white p-1 object-contain"
-          />
-          <span className="text-xl font-bold text-primary">BioPak</span>
+          {settingsLoading ? (
+            <>
+              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-6 w-24" />
+            </>
+          ) : (
+            <>
+              <Image
+                src={settings.logo_url}
+                alt="BioPak logo"
+                width={32}
+                height={32}
+                unoptimized
+                className="h-8 w-8 rounded bg-white p-1 object-contain"
+              />
+              <span className="text-xl font-bold text-primary">BioPak</span>
+            </>
+          )}
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

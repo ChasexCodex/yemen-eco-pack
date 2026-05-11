@@ -1,8 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
+import { Skeleton } from "@/components/skeleton";
+import { useApiSWR } from "@/lib/swr";
 import type { AdminStats, Inquiry, Product, ProductInput, SiteSettings } from "@/lib/types";
 
 type Tab = "stats" | "products" | "inquiries" | "settings";
@@ -36,6 +39,9 @@ const blankProduct: ProductFormState = {
   category_ar: "",
   in_stock: true,
 };
+
+const inputClassName = "w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2";
+const textareaClassName = `${inputClassName} resize-y`;
 
 function productToForm(product: Product): ProductFormState {
   return {
@@ -79,7 +85,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium">
+    <label className="grid min-w-0 gap-2 text-sm font-medium">
       <span>{label}</span>
       {children}
     </label>
@@ -90,16 +96,30 @@ export function AdminDashboard() {
   const { t } = useLanguage();
   const { refreshSettings } = useSiteSettings();
   const [tab, setTab] = useState<Tab>("stats");
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const {
+    data: stats,
+    mutate: mutateStats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useApiSWR<AdminStats>("/api/admin/stats");
+  const { data: products = [], mutate: mutateProducts, isLoading: productsLoading, error: productsError } =
+    useApiSWR<Product[]>("/api/products");
+  const { data: inquiries = [], mutate: mutateInquiries, isLoading: inquiriesLoading, error: inquiriesError } =
+    useApiSWR<Inquiry[]>("/api/inquiries");
+  const {
+    data: settingsData,
+    mutate: mutateSettings,
+    isLoading: settingsLoading,
+    error: settingsError,
+  } = useApiSWR<SiteSettings>("/api/settings");
   const [productForm, setProductForm] = useState<ProductFormState>(blankProduct);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [settingsForm, setSettingsForm] = useState<SiteSettings | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const loading = statsLoading || productsLoading || inquiriesLoading || settingsLoading;
+  const loadError = statsError ?? productsError ?? inquiriesError ?? settingsError;
 
   const statCards = useMemo(
     () => [
@@ -111,31 +131,15 @@ export function AdminDashboard() {
     [stats, t],
   );
 
-  const loadAll = async () => {
-    setLoading(true);
-    try {
-      const [nextStats, nextProducts, nextInquiries, nextSettings] = await Promise.all([
-        apiRequest<AdminStats>("/api/admin/stats"),
-        apiRequest<Product[]>("/api/products"),
-        apiRequest<Inquiry[]>("/api/inquiries"),
-        apiRequest<SiteSettings>("/api/settings"),
-      ]);
-      setStats(nextStats);
-      setProducts(nextProducts);
-      setInquiries(nextInquiries);
-      setSettings(nextSettings);
-      setError(null);
-    } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : "Unable to load admin data");
-    } finally {
-      setLoading(false);
-    }
+  const refreshAll = async () => {
+    await Promise.all([
+      mutateStats(),
+      mutateProducts(),
+      mutateInquiries(),
+      mutateSettings(),
+      refreshSettings(),
+    ]);
   };
-
-  useEffect(() => {
-    const id = window.setTimeout(() => void loadAll(), 0);
-    return () => window.clearTimeout(id);
-  }, []);
 
   const updateProductForm = (field: keyof ProductFormState, value: string | boolean) => {
     setProductForm((current) => ({ ...current, [field]: value }));
@@ -146,7 +150,7 @@ export function AdminDashboard() {
     setProductForm(productToForm(product));
     setTab("products");
     setNotice(null);
-    setError(null);
+    setActionError(null);
   };
 
   const resetProductForm = () => {
@@ -158,7 +162,7 @@ export function AdminDashboard() {
     event.preventDefault();
     setSaving(true);
     setNotice(null);
-    setError(null);
+    setActionError(null);
     try {
       const payload = formToProductInput(productForm);
       if (editingProductId) {
@@ -175,9 +179,9 @@ export function AdminDashboard() {
         setNotice("Product created.");
       }
       resetProductForm();
-      await loadAll();
+      await Promise.all([mutateProducts(), mutateStats()]);
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : "Unable to save product");
+      setActionError(caught instanceof Error ? caught.message : "Unable to save product");
     } finally {
       setSaving(false);
     }
@@ -187,14 +191,14 @@ export function AdminDashboard() {
     if (!window.confirm(`Delete ${product.name_en}?`)) return;
     setSaving(true);
     setNotice(null);
-    setError(null);
+    setActionError(null);
     try {
       await apiRequest<void>(`/api/products/${product.id}`, { method: "DELETE" });
       setNotice("Product deleted.");
       if (editingProductId === product.id) resetProductForm();
-      await loadAll();
+      await Promise.all([mutateProducts(), mutateStats()]);
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : "Unable to delete product");
+      setActionError(caught instanceof Error ? caught.message : "Unable to delete product");
     } finally {
       setSaving(false);
     }
@@ -203,7 +207,7 @@ export function AdminDashboard() {
   const saveInquiry = async (inquiry: Inquiry, resolved: boolean, reply: string) => {
     setSaving(true);
     setNotice(null);
-    setError(null);
+    setActionError(null);
     try {
       await apiRequest<Inquiry>(`/api/inquiries/${inquiry.id}`, {
         method: "PATCH",
@@ -213,34 +217,39 @@ export function AdminDashboard() {
         }),
       });
       setNotice("Inquiry updated.");
-      await loadAll();
+      await Promise.all([mutateInquiries(), mutateStats()]);
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : "Unable to update inquiry");
+      setActionError(caught instanceof Error ? caught.message : "Unable to update inquiry");
     } finally {
       setSaving(false);
     }
   };
 
   const updateSettingsField = (field: keyof SiteSettings, value: string) => {
-    setSettings((current) => (current ? { ...current, [field]: value } : current));
+    setSettingsForm((current) => ({
+      ...(current ?? settingsData ?? {}),
+      [field]: value,
+    }) as SiteSettings);
   };
 
   const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!settings) return;
+    const nextSettings = settingsForm ?? settingsData;
+    if (!nextSettings) return;
     setSaving(true);
     setNotice(null);
-    setError(null);
+    setActionError(null);
     try {
       const updated = await apiRequest<SiteSettings>("/api/settings", {
         method: "PATCH",
-        body: JSON.stringify(settings),
+        body: JSON.stringify(nextSettings),
       });
-      setSettings(updated);
+      setSettingsForm(updated);
+      await mutateSettings(updated, { revalidate: false });
       await refreshSettings();
       setNotice("Settings updated.");
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : "Unable to update settings");
+      setActionError(caught instanceof Error ? caught.message : "Unable to update settings");
     } finally {
       setSaving(false);
     }
@@ -259,7 +268,7 @@ export function AdminDashboard() {
         <h1 className="text-4xl font-bold text-foreground">{t("admin.title")}</h1>
         <button
           type="button"
-          onClick={() => void loadAll()}
+          onClick={() => void refreshAll()}
           className="rounded-lg border border-border px-4 py-2 font-semibold hover:bg-card"
         >
           Refresh
@@ -288,16 +297,21 @@ export function AdminDashboard() {
           {notice}
         </p>
       ) : null}
-      {error ? (
+      {actionError ? (
         <p className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
-          {error}
+          {actionError}
         </p>
       ) : null}
-      {loading ? (
-        <p className="rounded-xl border border-border bg-card p-6 text-muted">Loading...</p>
+      {loadError ? (
+        <p className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+          {loadError.message}
+        </p>
       ) : null}
 
-      {!loading && tab === "stats" ? (
+      {tab === "stats" ? (
+        loading ? (
+          <StatsSkeleton />
+        ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((card) => (
             <article key={card.label} className="rounded-2xl border border-border bg-card p-6">
@@ -306,33 +320,36 @@ export function AdminDashboard() {
             </article>
           ))}
         </div>
+        )
       ) : null}
 
-      {!loading && tab === "products" ? (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+      {tab === "products" ? (
+        loading ? (
+          <ProductsTabSkeleton />
+        ) : (
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full table-fixed text-left text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3">Product</th>
-                    <th className="px-4 py-3">Category</th>
-                    <th className="px-4 py-3">Price</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Actions</th>
+                    <th className="w-[36%] px-4 py-3">Product</th>
+                    <th className="w-[22%] px-4 py-3">Category</th>
+                    <th className="w-[11%] px-4 py-3">Price</th>
+                    <th className="w-[15%] px-4 py-3">Status</th>
+                    <th className="w-[16%] px-4 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
                     <tr key={product.id} className="border-b border-border/70">
-                      <td className="px-4 py-3 font-semibold">{product.name_en}</td>
-                      <td className="px-4 py-3 text-muted">{product.category_en}</td>
-                      <td className="px-4 py-3">${product.price.toFixed(2)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 font-semibold break-words">{product.name_en}</td>
+                      <td className="px-4 py-3 break-words text-muted">{product.category_en}</td>
+                      <td className="whitespace-nowrap px-4 py-3">${product.price.toFixed(2)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
                         {product.in_stock ? t("products.inStock") : t("products.outOfStock")}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <div className="inline-flex items-center gap-2 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => startEditProduct(product)}
@@ -344,9 +361,11 @@ export function AdminDashboard() {
                             type="button"
                             onClick={() => void deleteProduct(product)}
                             disabled={saving}
-                            className="rounded border border-red-300 px-3 py-1 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                            aria-label={`Delete ${product.name_en}`}
+                            title={`Delete ${product.name_en}`}
+                            className="rounded border border-red-300 p-2 text-red-700 hover:bg-red-50 disabled:opacity-60"
                           >
-                            Delete
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -354,51 +373,50 @@ export function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
-            </div>
           </div>
 
-          <form onSubmit={saveProduct} className="rounded-2xl border border-border bg-card p-6">
+          <form onSubmit={saveProduct} className="min-w-0 rounded-2xl border border-border bg-card p-6">
             <h2 className="mb-5 text-xl font-bold">
               {editingProductId ? t("admin.editProduct") : t("admin.createProduct")}
             </h2>
             <div className="grid gap-4">
               <Field label="Slug">
-                <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.slug} onChange={(event) => updateProductForm("slug", event.target.value)} required />
+                <input className={inputClassName} value={productForm.slug} onChange={(event) => updateProductForm("slug", event.target.value)} required />
               </Field>
               <Field label="Name EN">
-                <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.name_en} onChange={(event) => updateProductForm("name_en", event.target.value)} required />
+                <input className={inputClassName} value={productForm.name_en} onChange={(event) => updateProductForm("name_en", event.target.value)} required />
               </Field>
               <Field label="Name AR">
-                <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.name_ar} onChange={(event) => updateProductForm("name_ar", event.target.value)} required dir="rtl" />
+                <input className={inputClassName} value={productForm.name_ar} onChange={(event) => updateProductForm("name_ar", event.target.value)} required dir="rtl" />
               </Field>
               <Field label="Description EN">
-                <textarea className="rounded-lg border border-border bg-background px-3 py-2" rows={3} value={productForm.description_en} onChange={(event) => updateProductForm("description_en", event.target.value)} required />
+                <textarea className={textareaClassName} rows={3} value={productForm.description_en} onChange={(event) => updateProductForm("description_en", event.target.value)} required />
               </Field>
               <Field label="Description AR">
-                <textarea className="rounded-lg border border-border bg-background px-3 py-2" rows={3} value={productForm.description_ar} onChange={(event) => updateProductForm("description_ar", event.target.value)} required dir="rtl" />
+                <textarea className={textareaClassName} rows={3} value={productForm.description_ar} onChange={(event) => updateProductForm("description_ar", event.target.value)} required dir="rtl" />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Price">
-                  <input className="rounded-lg border border-border bg-background px-3 py-2" type="number" min="0" step="0.01" value={productForm.price} onChange={(event) => updateProductForm("price", event.target.value)} required />
+                  <input className={inputClassName} type="number" min="0" step="0.01" value={productForm.price} onChange={(event) => updateProductForm("price", event.target.value)} required />
                 </Field>
                 <Field label="Image URL">
-                  <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.image_url} onChange={(event) => updateProductForm("image_url", event.target.value)} required />
+                  <input className={inputClassName} value={productForm.image_url} onChange={(event) => updateProductForm("image_url", event.target.value)} required />
                 </Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Unit EN">
-                  <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.unit_en} onChange={(event) => updateProductForm("unit_en", event.target.value)} required />
+                  <input className={inputClassName} value={productForm.unit_en} onChange={(event) => updateProductForm("unit_en", event.target.value)} required />
                 </Field>
                 <Field label="Unit AR">
-                  <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.unit_ar} onChange={(event) => updateProductForm("unit_ar", event.target.value)} required dir="rtl" />
+                  <input className={inputClassName} value={productForm.unit_ar} onChange={(event) => updateProductForm("unit_ar", event.target.value)} required dir="rtl" />
                 </Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Category EN">
-                  <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.category_en} onChange={(event) => updateProductForm("category_en", event.target.value)} required />
+                  <input className={inputClassName} value={productForm.category_en} onChange={(event) => updateProductForm("category_en", event.target.value)} required />
                 </Field>
                 <Field label="Category AR">
-                  <input className="rounded-lg border border-border bg-background px-3 py-2" value={productForm.category_ar} onChange={(event) => updateProductForm("category_ar", event.target.value)} required dir="rtl" />
+                  <input className={inputClassName} value={productForm.category_ar} onChange={(event) => updateProductForm("category_ar", event.target.value)} required dir="rtl" />
                 </Field>
               </div>
               <label className="flex items-center gap-2 text-sm font-medium">
@@ -418,9 +436,13 @@ export function AdminDashboard() {
             </div>
           </form>
         </div>
+        )
       ) : null}
 
-      {!loading && tab === "inquiries" ? (
+      {tab === "inquiries" ? (
+        loading ? (
+          <InquiriesSkeleton />
+        ) : (
         <div className="grid gap-5">
           {inquiries.map((inquiry) => (
             <InquiryEditor
@@ -431,17 +453,21 @@ export function AdminDashboard() {
             />
           ))}
         </div>
+        )
       ) : null}
 
-      {!loading && tab === "settings" && settings ? (
+      {tab === "settings" ? (
+        loading || !(settingsForm ?? settingsData) ? (
+          <SettingsSkeleton />
+        ) : (
         <form onSubmit={saveSettings} className="max-w-3xl rounded-2xl border border-border bg-card p-6">
           <h2 className="mb-5 text-xl font-bold">{t("admin.settings")}</h2>
           <div className="grid gap-4">
-            {Object.entries(settings).map(([key, value]) => (
+            {Object.entries(settingsForm ?? settingsData ?? {}).map(([key, value]) => (
               <Field key={key} label={key}>
                 {key.includes("tagline") ? (
                   <textarea
-                    className="rounded-lg border border-border bg-background px-3 py-2"
+                    className={textareaClassName}
                     rows={2}
                     value={value}
                     onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)}
@@ -449,13 +475,7 @@ export function AdminDashboard() {
                     required
                   />
                 ) : (
-                  <input
-                    className="rounded-lg border border-border bg-background px-3 py-2"
-                    value={value}
-                    onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)}
-                    dir={key.endsWith("_ar") ? "rtl" : "ltr"}
-                    required
-                  />
+                    <input className={inputClassName} value={value} onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)} dir={key.endsWith("_ar") ? "rtl" : "ltr"} required />
                 )}
               </Field>
             ))}
@@ -464,8 +484,85 @@ export function AdminDashboard() {
             </button>
           </div>
         </form>
+        )
       ) : null}
     </section>
+  );
+}
+
+function StatsSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <article key={index} className="rounded-2xl border border-border bg-card p-6">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="mt-3 h-10 w-16" />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function ProductsTabSkeleton() {
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card p-4">
+        <div className="space-y-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <Skeleton className="mb-5 h-7 w-40" />
+        <div className="grid gap-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="grid gap-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InquiriesSkeleton() {
+  return (
+    <div className="grid gap-5">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <article key={index} className="rounded-2xl border border-border bg-card p-6">
+          <Skeleton className="mb-3 h-6 w-40" />
+          <Skeleton className="mb-2 h-4 w-56" />
+          <Skeleton className="mb-4 h-4 w-32" />
+          <Skeleton className="mb-4 h-20 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function SettingsSkeleton() {
+  return (
+    <div className="max-w-3xl rounded-2xl border border-border bg-card p-6">
+      <Skeleton className="mb-5 h-7 w-40" />
+      <div className="grid gap-4">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div key={index} className="grid gap-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -515,7 +612,7 @@ function InquiryEditor({
           rows={3}
           value={reply}
           onChange={(event) => setReply(event.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-2"
+          className={textareaClassName}
         />
       </label>
 

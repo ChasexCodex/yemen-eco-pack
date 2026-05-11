@@ -1,14 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
+import { Skeleton } from "@/components/skeleton";
 import type { Inquiry, InquiryInput } from "@/lib/types";
 
 export function SiteFooter() {
   const { lang, t } = useLanguage();
-  const { settings } = useSiteSettings();
+  const { settings, settingsLoading } = useSiteSettings();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
 
@@ -86,34 +88,57 @@ export function SiteFooter() {
         </div>
 
         <div className="md:pl-12">
-          <div className="mb-4 flex items-center gap-2">
-            <img
-              src={settings.logo_url}
-              alt="BioPak"
-              className="h-9 w-9 rounded bg-white p-1 object-contain"
-            />
-            <span className="text-2xl font-bold text-primary">BioPak</span>
-          </div>
-          <p className="mb-6 text-muted">
-            {tagline}
-          </p>
-          <div className="mb-6 space-y-2">
-            <p>
-              <span className="font-semibold">{t("contact.address")}:</span> {address}
-            </p>
-            <p>
-              <span className="font-semibold">{t("contact.email")}:</span>{" "}
-              <a href={`mailto:${settings.contact_email}`} className="hover:text-primary">
-                {settings.contact_email}
-              </a>
-            </p>
-            <p>
-              <span className="font-semibold">{t("contact.phone")}:</span>{" "}
-              <a href={`tel:${settings.contact_phone}`} className="hover:text-primary" dir="ltr">
-                {settings.contact_phone}
-              </a>
-            </p>
-          </div>
+          {settingsLoading ? (
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <Skeleton className="h-9 w-9 rounded" />
+                <Skeleton className="h-7 w-28" />
+              </div>
+              <div className="mb-6 space-y-2">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-11/12" />
+              </div>
+              <div className="mb-6 space-y-3">
+                <Skeleton className="h-5 w-4/5" />
+                <Skeleton className="h-5 w-3/5" />
+                <Skeleton className="h-5 w-2/5" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <Image
+                  src={settings.logo_url}
+                  alt="BioPak"
+                  width={36}
+                  height={36}
+                  unoptimized
+                  className="h-9 w-9 rounded bg-white p-1 object-contain"
+                />
+                <span className="text-2xl font-bold text-primary">BioPak</span>
+              </div>
+              <p className="mb-6 text-muted">
+                {tagline}
+              </p>
+              <div className="mb-6 space-y-2">
+                <p>
+                  <span className="font-semibold">{t("contact.address")}:</span> {address}
+                </p>
+                <p>
+                  <span className="font-semibold">{t("contact.email")}:</span>{" "}
+                  <a href={`mailto:${settings.contact_email}`} className="hover:text-primary">
+                    {settings.contact_email}
+                  </a>
+                </p>
+                <p>
+                  <span className="font-semibold">{t("contact.phone")}:</span>{" "}
+                  <a href={`tel:${settings.contact_phone}`} className="hover:text-primary" dir="ltr">
+                    {settings.contact_phone}
+                  </a>
+                </p>
+              </div>
+            </>
+          )}
           <div className="flex gap-4 text-sm text-muted">
             <Link href="/" className="hover:text-primary">
               {t("nav.home")}

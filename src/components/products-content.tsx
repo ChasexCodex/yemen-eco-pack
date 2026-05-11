@@ -1,39 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/app-providers";
 import { ProductCard } from "@/components/product-card";
-import { apiRequest } from "@/lib/api-client";
+import { Skeleton } from "@/components/skeleton";
+import { useApiSWR } from "@/lib/swr";
 import type { Product } from "@/lib/types";
 
 export function ProductsContent() {
   const { t } = useLanguage();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiRequest<Product[]>("/api/products")
-      .then((items) => {
-        setProducts(items);
-        setError(null);
-      })
-      .catch((caught: unknown) => {
-        setError(caught instanceof Error ? caught.message : "Unable to load products");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: products = [], error, isLoading } = useApiSWR<Product[]>("/api/products");
 
   return (
     <section className="container py-16">
       <h1 className="mb-12 text-4xl font-bold text-foreground">{t("products.title")}</h1>
 
-      {loading ? (
-        <p className="rounded-xl border border-border bg-card p-6 text-muted">
-          {t("products.loading")}
-        </p>
+      {isLoading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ProductCardSkeleton key={index} />
+          ))}
+        </div>
       ) : error ? (
-        <p className="rounded-xl border border-border bg-card p-6 text-red-700">{error}</p>
+        <p className="rounded-xl border border-border bg-card p-6 text-red-700">{error.message}</p>
       ) : products.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-6 text-muted">
           {t("products.empty")}
@@ -46,6 +34,25 @@ export function ProductsContent() {
         </div>
       )}
     </section>
+  );
+}
+
+function ProductCardSkeleton() {
+  return (
+    <article className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="border-b border-border bg-white p-6">
+        <Skeleton className="aspect-square w-full rounded-xl" />
+      </div>
+      <div className="flex h-40 flex-col p-5">
+        <Skeleton className="mb-3 h-3 w-1/3" />
+        <Skeleton className="mb-2 h-6 w-4/5" />
+        <Skeleton className="h-6 w-3/5" />
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+          <Skeleton className="h-7 w-20" />
+          <Skeleton className="h-5 w-16" />
+        </div>
+      </div>
+    </article>
   );
 }
 
