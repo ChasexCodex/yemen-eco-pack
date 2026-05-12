@@ -6,6 +6,7 @@ export type Product = {
   price: number;
   image: string;
   description: string;
+  stockAmount: number;
   inStock: boolean;
 };
 
@@ -19,6 +20,7 @@ export const products: Product[] = [
     image: "/products/clamshell-9x9.png",
     description:
       "A sturdy compostable clamshell made from sugarcane fiber, suitable for hot and cold meals.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -30,6 +32,7 @@ export const products: Product[] = [
     image: "/products/clamshell-3compartment.png",
     description:
       "Multi-compartment compostable takeaway container ideal for portioned dishes and mixed meals.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -41,6 +44,7 @@ export const products: Product[] = [
     image: "/products/bowl-24oz.png",
     description:
       "Deep biodegradable bowl for salads, rice dishes, and soups with reliable structure.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -52,6 +56,7 @@ export const products: Product[] = [
     image: "/products/pla-cold-cup-16oz.png",
     description:
       "Crystal-clear compostable cup for cold beverages, made from plant-based PLA material.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -63,6 +68,7 @@ export const products: Product[] = [
     image: "/products/hot-cup-12oz.png",
     description:
       "Insulated compostable hot cup designed for tea and coffee service in eco-conscious cafes.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -74,6 +80,7 @@ export const products: Product[] = [
     image: "/products/kraft-straws.png",
     description:
       "Durable paper straws made from responsibly sourced kraft paper with plastic-free packaging.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -85,6 +92,7 @@ export const products: Product[] = [
     image: "/products/portion-cup-2oz.png",
     description:
       "Small compostable cup for sauces, condiments, and sampling portions in food service.",
+    stockAmount: 1,
     inStock: true,
   },
   {
@@ -96,6 +104,7 @@ export const products: Product[] = [
     image: "/products/trash-bags-13gal.png",
     description:
       "Compostable liner bags for waste collection, engineered for strength and cleaner disposal.",
+    stockAmount: 1,
     inStock: true,
   },
 ];

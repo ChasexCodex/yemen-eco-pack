@@ -52,6 +52,7 @@ type ProductRow = {
   image_url: string;
   category_en: string;
   category_ar: string;
+  stock_amount: number | string;
   in_stock: boolean;
   created_at: Date | string;
 };
@@ -74,7 +75,7 @@ async function loadChatContext() {
       dbPool.query<ProductRow>(`
         SELECT
           id, slug, name_en, name_ar, description_en, description_ar,
-          price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at
+          price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock, created_at
         FROM products
         ORDER BY id;
       `),

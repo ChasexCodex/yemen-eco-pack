@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const DEFAULT_ADMIN_EMAIL = "yoe.a.amai@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "elaf.a.amri@gmail.com";
 
 type AuthState = {
   signed_in: boolean;

@@ -28,6 +28,7 @@ function getFallbackProducts() {
     image_url: product.image,
     category_en: product.category,
     category_ar: product.category,
+    stock_amount: product.stockAmount,
     in_stock: product.inStock,
     created_at: new Date(0).toISOString(),
   }));
@@ -40,7 +41,7 @@ export async function GET() {
     const result = await dbPool.query(`
       SELECT
         id, slug, name_en, name_ar, description_en, description_ar,
-        price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at
+        price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock, created_at
       FROM products
       ORDER BY id;
     `);
@@ -70,15 +71,15 @@ export async function POST(request: NextRequest) {
       `
         INSERT INTO products (
           slug, name_en, name_ar, description_en, description_ar,
-          price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock
+          price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock
         )
         VALUES (
           $1, $2, $3, $4, $5,
-          $6, $7, $8, $9, $10, $11, $12
+          $6, $7, $8, $9, $10, $11, $12, $13
         )
         RETURNING
           id, slug, name_en, name_ar, description_en, description_ar,
-          price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at;
+          price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock, created_at;
       `,
       [
         parsed.data.slug,
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
         parsed.data.image_url,
         parsed.data.category_en,
         parsed.data.category_ar,
+        parsed.data.stock_amount,
         parsed.data.in_stock,
       ],
     );

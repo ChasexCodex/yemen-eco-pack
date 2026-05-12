@@ -13,6 +13,7 @@ export type Product = {
   image_url: string;
   category_en: string;
   category_ar: string;
+  stock_amount: number;
   in_stock: boolean;
   created_at: string;
 };

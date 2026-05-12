@@ -61,8 +61,9 @@ function readStoredTheme(): Theme {
 }
 
 export function AppProviders({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => readStoredLang());
-  const [theme, setThemeState] = useState<Theme>(() => readStoredTheme());
+  const [lang, setLangState] = useState<Lang>("en");
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [preferencesReady, setPreferencesReady] = useState(false);
   const {
     data: settingsData,
     isLoading: settingsLoading,
@@ -70,15 +71,27 @@ export function AppProviders({ children }: { children: ReactNode }) {
   } = useApiSWR<SiteSettings>("/api/settings");
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setLangState(readStoredLang());
+      setThemeState(readStoredTheme());
+      setPreferencesReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (!preferencesReady) return;
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     window.localStorage.setItem("biopak-lang", lang);
-  }, [lang]);
+  }, [lang, preferencesReady]);
 
   useEffect(() => {
+    if (!preferencesReady) return;
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem("biopak-theme", theme);
-  }, [theme]);
+  }, [theme, preferencesReady]);
 
   const settings = settingsData ?? defaultSettings;
 

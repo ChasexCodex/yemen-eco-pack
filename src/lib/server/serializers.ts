@@ -13,6 +13,7 @@ type ProductDbRow = {
   image_url: string;
   category_en: string;
   category_ar: string;
+  stock_amount: number | string;
   in_stock: boolean;
   created_at: Date | string;
 };
@@ -59,6 +60,8 @@ export function serializeProduct(row: ProductDbRow): Product {
     image_url: row.image_url,
     category_en: row.category_en,
     category_ar: row.category_ar,
+    stock_amount:
+      typeof row.stock_amount === "number" ? row.stock_amount : Number(row.stock_amount),
     in_stock: row.in_stock,
     created_at: toIso(row.created_at),
   };

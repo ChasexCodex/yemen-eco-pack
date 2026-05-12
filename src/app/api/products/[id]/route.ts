@@ -30,6 +30,7 @@ function serializeFallbackProduct(id: number) {
     image_url: product.image,
     category_en: product.category,
     category_ar: product.category,
+    stock_amount: product.stockAmount,
     in_stock: product.inStock,
     created_at: new Date(0).toISOString(),
   };
@@ -56,7 +57,7 @@ export async function GET(
       `
         SELECT
           id, slug, name_en, name_ar, description_en, description_ar,
-          price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at
+          price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock, created_at
         FROM products
         WHERE id = $1;
       `,
@@ -115,11 +116,12 @@ export async function PATCH(
           image_url = $9,
           category_en = $10,
           category_ar = $11,
-          in_stock = $12
-        WHERE id = $13
+          stock_amount = $12,
+          in_stock = $13
+        WHERE id = $14
         RETURNING
           id, slug, name_en, name_ar, description_en, description_ar,
-          price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock, created_at;
+          price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock, created_at;
       `,
       [
         parsed.data.slug,
@@ -133,6 +135,7 @@ export async function PATCH(
         parsed.data.image_url,
         parsed.data.category_en,
         parsed.data.category_ar,
+        parsed.data.stock_amount,
         parsed.data.in_stock,
         id,
       ],

@@ -11,6 +11,7 @@ export type Product = {
   image_url: string;
   category_en: string;
   category_ar: string;
+  stock_amount: number;
   in_stock: boolean;
   created_at: string;
 };
@@ -115,7 +116,7 @@ export function parseProductInput(payload: unknown): ValidationResult<ProductInp
   const category_en = asNonEmptyString(payload.category_en);
   const category_ar = asNonEmptyString(payload.category_ar);
   const price = parseNumber(payload.price);
-  const in_stock = payload.in_stock;
+  const stock_amount = parseNumber(payload.stock_amount);
 
   if (
     !slug ||
@@ -130,7 +131,9 @@ export function parseProductInput(payload: unknown): ValidationResult<ProductInp
     !category_ar ||
     price === null ||
     price < 0 ||
-    typeof in_stock !== "boolean"
+    stock_amount === null ||
+    !Number.isInteger(stock_amount) ||
+    stock_amount < 0
   ) {
     return { success: false, error: "Invalid product input" };
   }
@@ -149,7 +152,8 @@ export function parseProductInput(payload: unknown): ValidationResult<ProductInp
       image_url,
       category_en,
       category_ar,
-      in_stock,
+      stock_amount,
+      in_stock: stock_amount > 0,
     },
   };
 }

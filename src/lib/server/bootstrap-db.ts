@@ -13,6 +13,7 @@ type SeedProduct = {
   image_url: string;
   category_en: string;
   category_ar: string;
+  stock_amount: number;
   in_stock: boolean;
 };
 
@@ -35,6 +36,7 @@ const seedProducts: SeedProduct[] = fallbackProducts.map((product) => ({
   image_url: product.image,
   category_en: product.category,
   category_ar: product.category,
+  stock_amount: product.stockAmount,
   in_stock: product.inStock,
 }));
 
@@ -59,9 +61,42 @@ async function runBootstrap() {
         image_url TEXT NOT NULL,
         category_en TEXT NOT NULL,
         category_ar TEXT NOT NULL,
+        stock_amount INTEGER NOT NULL DEFAULT 0,
         in_stock BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await client.query(`
+      ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS stock_amount INTEGER;
+    `);
+
+    await client.query(`
+      UPDATE products
+      SET stock_amount = CASE WHEN in_stock THEN 1 ELSE 0 END
+      WHERE stock_amount IS NULL;
+    `);
+
+    await client.query(`
+      UPDATE products
+      SET stock_amount = 0, in_stock = FALSE
+      WHERE stock_amount < 0;
+    `);
+
+    await client.query(`
+      ALTER TABLE products
+      ALTER COLUMN stock_amount SET DEFAULT 0;
+    `);
+
+    await client.query(`
+      ALTER TABLE products
+      ALTER COLUMN stock_amount SET NOT NULL;
+    `);
+
+    await client.query(`
+      UPDATE products
+      SET in_stock = stock_amount > 0;
     `);
 
     await client.query(`
@@ -106,11 +141,11 @@ async function runBootstrap() {
           `
             INSERT INTO products (
               slug, name_en, name_ar, description_en, description_ar,
-              price, unit_en, unit_ar, image_url, category_en, category_ar, in_stock
+              price, unit_en, unit_ar, image_url, category_en, category_ar, stock_amount, in_stock
             )
             VALUES (
               $1, $2, $3, $4, $5,
-              $6, $7, $8, $9, $10, $11, $12
+              $6, $7, $8, $9, $10, $11, $12, $13
             )
           `,
           [
@@ -125,6 +160,7 @@ async function runBootstrap() {
             product.image_url,
             product.category_en,
             product.category_ar,
+            product.stock_amount,
             product.in_stock,
           ],
         );

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
@@ -9,6 +9,7 @@ import { useApiSWR } from "@/lib/swr";
 import type { AdminStats, Inquiry, Product, ProductInput, SiteSettings } from "@/lib/types";
 
 type Tab = "stats" | "products" | "inquiries" | "settings";
+type UploadField = "product-image" | "logo-image";
 
 type ProductFormState = {
   slug: string;
@@ -22,7 +23,7 @@ type ProductFormState = {
   image_url: string;
   category_en: string;
   category_ar: string;
-  in_stock: boolean;
+  stock_amount: string;
 };
 
 const blankProduct: ProductFormState = {
@@ -37,11 +38,16 @@ const blankProduct: ProductFormState = {
   image_url: "/products/bowl-24oz.png",
   category_en: "",
   category_ar: "",
-  in_stock: true,
+  stock_amount: "1",
 };
 
 const inputClassName = "w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2";
 const textareaClassName = `${inputClassName} resize-y`;
+
+type UploadImageResponse = {
+  path: string;
+  url: string;
+};
 
 function productToForm(product: Product): ProductFormState {
   return {
@@ -56,7 +62,7 @@ function productToForm(product: Product): ProductFormState {
     image_url: product.image_url,
     category_en: product.category_en,
     category_ar: product.category_ar,
-    in_stock: product.in_stock,
+    stock_amount: String(product.stock_amount),
   };
 }
 
@@ -73,7 +79,8 @@ function formToProductInput(form: ProductFormState): ProductInput {
     image_url: form.image_url,
     category_en: form.category_en,
     category_ar: form.category_ar,
-    in_stock: form.in_stock,
+    stock_amount: Number(form.stock_amount),
+    in_stock: Number(form.stock_amount) > 0,
   };
 }
 
@@ -89,6 +96,53 @@ function Field({
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+function ImageInput({
+  label,
+  value,
+  disabled,
+  uploading,
+  onChange,
+  onUpload,
+}: {
+  label: string;
+  value: string;
+  disabled?: boolean;
+  uploading: boolean;
+  onChange: (value: string) => void;
+  onUpload: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+}) {
+  return (
+    <Field label={label}>
+      <div className="grid gap-3">
+        <input
+          className={inputClassName}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          required
+          disabled={disabled}
+        />
+        <label className="grid gap-2 text-xs font-medium text-muted">
+          <span>{uploading ? "Uploading image..." : "Upload image from storage"}</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => {
+              void onUpload(event);
+            }}
+            disabled={disabled || uploading}
+            className="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:font-semibold file:text-primary-foreground hover:file:opacity-90"
+          />
+        </label>
+        {value ? (
+          <div className="overflow-hidden rounded-xl border border-border bg-white p-3">
+            <img src={value} alt={`${label} preview`} className="h-32 w-full object-contain" />
+          </div>
+        ) : null}
+      </div>
+    </Field>
   );
 }
 
@@ -118,6 +172,7 @@ export function AdminDashboard() {
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingField, setUploadingField] = useState<UploadField | null>(null);
   const loading = statsLoading || productsLoading || inquiriesLoading || settingsLoading;
   const loadError = statsError ?? productsError ?? inquiriesError ?? settingsError;
 
@@ -141,8 +196,72 @@ export function AdminDashboard() {
     ]);
   };
 
-  const updateProductForm = (field: keyof ProductFormState, value: string | boolean) => {
+  const updateProductForm = (field: keyof ProductFormState, value: string) => {
     setProductForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const uploadImage = async ({
+    file,
+    field,
+    folder,
+    onUploaded,
+  }: {
+    file: File;
+    field: UploadField;
+    folder: "products" | "settings";
+    onUploaded: (url: string) => void;
+  }) => {
+    setUploadingField(field);
+    setNotice(null);
+    setActionError(null);
+
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      formData.set("folder", folder);
+
+      const result = await apiRequest<UploadImageResponse>("/api/admin/storage/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      onUploaded(result.url);
+      setNotice("Image uploaded. Save changes to apply it.");
+    } catch (caught: unknown) {
+      setActionError(caught instanceof Error ? caught.message : "Unable to upload image");
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  const handleProductImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    await uploadImage({
+      file,
+      field: "product-image",
+      folder: "products",
+      onUploaded: (url) => updateProductForm("image_url", url),
+    });
+  };
+
+  const handleLogoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    await uploadImage({
+      file,
+      field: "logo-image",
+      folder: "settings",
+      onUploaded: (url) => updateSettingsField("logo_url", url),
+    });
   };
 
   const startEditProduct = (product: Product) => {
@@ -335,6 +454,7 @@ export function AdminDashboard() {
                     <th className="w-[36%] px-4 py-3">Product</th>
                     <th className="w-[22%] px-4 py-3">Category</th>
                     <th className="w-[11%] px-4 py-3">Price</th>
+                    <th className="w-[10%] px-4 py-3">Stock</th>
                     <th className="w-[15%] px-4 py-3">Status</th>
                     <th className="w-[16%] px-4 py-3">Actions</th>
                   </tr>
@@ -342,12 +462,13 @@ export function AdminDashboard() {
                 <tbody>
                   {products.map((product) => (
                     <tr key={product.id} className="border-b border-border/70">
-                      <td className="px-4 py-3 font-semibold break-words">{product.name_en}</td>
-                      <td className="px-4 py-3 break-words text-muted">{product.category_en}</td>
-                      <td className="whitespace-nowrap px-4 py-3">${product.price.toFixed(2)}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        {product.in_stock ? t("products.inStock") : t("products.outOfStock")}
-                      </td>
+                       <td className="px-4 py-3 font-semibold break-words">{product.name_en}</td>
+                       <td className="px-4 py-3 break-words text-muted">{product.category_en}</td>
+                       <td className="whitespace-nowrap px-4 py-3">${product.price.toFixed(2)}</td>
+                       <td className="whitespace-nowrap px-4 py-3">{product.stock_amount}</td>
+                       <td className="whitespace-nowrap px-4 py-3">
+                         {product.in_stock ? t("products.inStock") : t("products.outOfStock")}
+                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <div className="inline-flex items-center gap-2 whitespace-nowrap">
                           <button
@@ -399,30 +520,47 @@ export function AdminDashboard() {
                 <Field label="Price">
                   <input className={inputClassName} type="number" min="0" step="0.01" value={productForm.price} onChange={(event) => updateProductForm("price", event.target.value)} required />
                 </Field>
-                <Field label="Image URL">
-                  <input className={inputClassName} value={productForm.image_url} onChange={(event) => updateProductForm("image_url", event.target.value)} required />
+                <Field label="Stock amount">
+                  <input
+                    className={inputClassName}
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={productForm.stock_amount}
+                    onChange={(event) => updateProductForm("stock_amount", event.target.value)}
+                    required
+                  />
                 </Field>
               </div>
+              <p className="text-sm text-muted">
+                Product availability updates automatically from the stock amount.
+              </p>
               <div className="grid gap-4 sm:grid-cols-2">
+                <ImageInput
+                  label="Image URL"
+                  value={productForm.image_url}
+                  onChange={(value) => updateProductForm("image_url", value)}
+                  onUpload={handleProductImageUpload}
+                  uploading={uploadingField === "product-image"}
+                  disabled={saving}
+                />
                 <Field label="Unit EN">
                   <input className={inputClassName} value={productForm.unit_en} onChange={(event) => updateProductForm("unit_en", event.target.value)} required />
                 </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Unit AR">
                   <input className={inputClassName} value={productForm.unit_ar} onChange={(event) => updateProductForm("unit_ar", event.target.value)} required dir="rtl" />
                 </Field>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Category EN">
                   <input className={inputClassName} value={productForm.category_en} onChange={(event) => updateProductForm("category_en", event.target.value)} required />
                 </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Category AR">
                   <input className={inputClassName} value={productForm.category_ar} onChange={(event) => updateProductForm("category_ar", event.target.value)} required dir="rtl" />
                 </Field>
               </div>
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" checked={productForm.in_stock} onChange={(event) => updateProductForm("in_stock", event.target.checked)} />
-                {t("products.inStock")}
-              </label>
               <div className="flex gap-3">
                 <button className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-60" disabled={saving}>
                   {t("admin.save")}
@@ -461,24 +599,36 @@ export function AdminDashboard() {
           <SettingsSkeleton />
         ) : (
         <form onSubmit={saveSettings} className="max-w-3xl rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-5 text-xl font-bold">{t("admin.settings")}</h2>
-          <div className="grid gap-4">
-            {Object.entries(settingsForm ?? settingsData ?? {}).map(([key, value]) => (
-              <Field key={key} label={key}>
-                {key.includes("tagline") ? (
-                  <textarea
-                    className={textareaClassName}
-                    rows={2}
-                    value={value}
-                    onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)}
-                    dir={key.endsWith("_ar") ? "rtl" : "ltr"}
-                    required
+            <h2 className="mb-5 text-xl font-bold">{t("admin.settings")}</h2>
+            <div className="grid gap-4">
+              {Object.entries(settingsForm ?? settingsData ?? {}).map(([key, value]) => (
+                key === "logo_url" ? (
+                  <ImageInput
+                    key={key}
+                    label={key}
+                    value={String(value)}
+                    onChange={(nextValue) => updateSettingsField("logo_url", nextValue)}
+                    onUpload={handleLogoUpload}
+                    uploading={uploadingField === "logo-image"}
+                    disabled={saving}
                   />
+                ) : key.includes("tagline") ? (
+                  <Field key={key} label={key}>
+                    <textarea
+                      className={textareaClassName}
+                      rows={2}
+                      value={value}
+                      onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)}
+                      dir={key.endsWith("_ar") ? "rtl" : "ltr"}
+                      required
+                    />
+                  </Field>
                 ) : (
+                  <Field key={key} label={key}>
                     <input className={inputClassName} value={value} onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)} dir={key.endsWith("_ar") ? "rtl" : "ltr"} required />
-                )}
-              </Field>
-            ))}
+                  </Field>
+                )
+              ))}
             <button className="w-fit rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-60" disabled={saving}>
               {t("admin.save")}
             </button>

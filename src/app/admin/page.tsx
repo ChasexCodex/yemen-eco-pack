@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { SiteShell } from "@/components/site-shell";
 import { AdminDashboard } from "@/components/admin-dashboard";
 
-const DEFAULT_ADMIN_EMAIL = "yoe.a.amai@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "elaf.a.amri@gmail.com";
 
 export default async function AdminPage() {
   const { userId } = await auth();
