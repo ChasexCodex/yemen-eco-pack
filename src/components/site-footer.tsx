@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/api-client";
 import { Skeleton } from "@/components/skeleton";
 import type { Inquiry, InquiryInput } from "@/lib/types";
 
-export function SiteFooter() {
+export function SiteFooter({ showContactForm = true }: { showContactForm?: boolean }) {
   const { lang, t } = useLanguage();
   const { settings, settingsLoading } = useSiteSettings();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
@@ -42,52 +42,54 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-16 border-t border-border bg-card">
-      <div className="container grid gap-12 py-12 md:grid-cols-2">
-        <div>
-          <h3 className="mb-4 text-2xl font-bold">{t("contact.title")}</h3>
-          <p className="mb-6 text-muted">
-            {t("contact.subtitle")}
-          </p>
-          <form className="max-w-md space-y-4" onSubmit={onSubmit}>
-            <input
-              className="w-full rounded-lg border border-border bg-background px-3 py-2"
-              placeholder={t("contact.nameLabel")}
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-              required
-            />
-            <input
-              className="w-full rounded-lg border border-border bg-background px-3 py-2"
-              placeholder={t("contact.emailLabel")}
-              type="email"
-              value={form.email}
-              onChange={(event) => updateField("email", event.target.value)}
-              required
-            />
-            <textarea
-              className="w-full rounded-lg border border-border bg-background px-3 py-2"
-              rows={4}
-              placeholder={t("contact.messageLabel")}
-              value={form.message}
-              onChange={(event) => updateField("message", event.target.value)}
-              required
-            />
-            <button
-              className="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-primary-foreground disabled:opacity-60"
-              disabled={status === "submitting"}
-            >
-              {status === "submitting" ? t("contact.submitting") : t("contact.submit")}
-            </button>
-            {status === "success" ? (
-              <p className="text-sm font-medium text-primary">{t("contact.success")}</p>
-            ) : null}
-            {status === "error" ? (
-              <p className="text-sm font-medium text-red-700">{t("contact.error")}</p>
-            ) : null}
-          </form>
-        </div>
+      <div className={`container grid gap-12 py-12 ${showContactForm ? "md:grid-cols-2" : ""}`}>
+        {showContactForm ? (
+          <div>
+            <h3 className="mb-4 text-2xl font-bold">{t("contact.title")}</h3>
+            <p className="mb-6 text-muted">
+              {t("contact.subtitle")}
+            </p>
+            <form className="max-w-md space-y-4" onSubmit={onSubmit}>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                placeholder={t("contact.nameLabel")}
+                value={form.name}
+                onChange={(event) => updateField("name", event.target.value)}
+                required
+              />
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                placeholder={t("contact.emailLabel")}
+                type="email"
+                value={form.email}
+                onChange={(event) => updateField("email", event.target.value)}
+                required
+              />
+              <textarea
+                className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                rows={4}
+                placeholder={t("contact.messageLabel")}
+                value={form.message}
+                onChange={(event) => updateField("message", event.target.value)}
+                required
+              />
+              <button
+                className="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-primary-foreground disabled:opacity-60"
+                disabled={status === "submitting"}
+              >
+                {status === "submitting" ? t("contact.submitting") : t("contact.submit")}
+              </button>
+              {status === "success" ? (
+                <p className="text-sm font-medium text-primary">{t("contact.success")}</p>
+              ) : null}
+              {status === "error" ? (
+                <p className="text-sm font-medium text-red-700">{t("contact.error")}</p>
+              ) : null}
+            </form>
+          </div>
+        ) : null}
 
-        <div className="md:pl-12">
+        <div className={showContactForm ? "md:pl-12" : ""}>
           {settingsLoading ? (
             <>
               <div className="mb-4 flex items-center gap-2">
@@ -113,7 +115,7 @@ export function SiteFooter() {
                   width={36}
                   height={36}
                   unoptimized
-                  className="h-9 w-9 rounded bg-white p-1 object-contain"
+                  className="h-9 w-9 rounded p-1 object-contain"
                 />
                 <span className="text-2xl font-bold text-primary">BioPak</span>
               </div>
@@ -165,4 +167,3 @@ export function SiteFooter() {
     </footer>
   );
 }
-

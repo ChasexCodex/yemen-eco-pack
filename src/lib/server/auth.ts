@@ -1,17 +1,12 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-
-const DEFAULT_ADMIN_EMAIL = "elaf.a.amri@gmail.com";
+import { resolveAdminEmail } from "@/lib/server/admin-config";
 
 type AuthState = {
   signed_in: boolean;
   is_admin: boolean;
   email: string | null;
 };
-
-function resolveAdminEmail() {
-  return (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).trim().toLowerCase();
-}
 
 export async function getAuthState(): Promise<AuthState> {
   const { userId } = await auth();
@@ -48,4 +43,3 @@ export async function requireAdminApi(): Promise<NextResponse | null> {
   }
   return null;
 }
-

@@ -62,7 +62,7 @@ export function SiteHeader() {
                 width={32}
                 height={32}
                 unoptimized
-                className="h-8 w-8 rounded bg-white p-1 object-contain"
+                className="h-8 w-8 rounded p-1 object-contain"
               />
               <span className="text-xl font-bold text-primary">BioPak</span>
             </>
@@ -178,4 +178,3 @@ export function SiteHeader() {
     </header>
   );
 }
-

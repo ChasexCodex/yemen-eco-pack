@@ -19,7 +19,7 @@ export const translations = {
     home: {
       heroTitle: "Sustainable Packaging for a Greener Tomorrow",
       heroSubtitle: "BioPak provides eco-friendly, biodegradable food packaging solutions in Yemen.",
-      shopNow: "Shop Now",
+      shopNow: "Learn More",
       featuredProducts: "Featured Products",
       viewAll: "View All Products",
       whyBiodegradable: "Why Biodegradable?",
@@ -89,6 +89,17 @@ export const translations = {
       title: "BioPak Support",
       placeholder: "Type your message...",
       send: "Send",
+      start: "Start chat",
+      emailPrompt: "Before we start, please enter your email address.",
+      emailPlaceholder: "you@example.com",
+      invalidEmail: "Please enter a valid email address.",
+      end: "End chat",
+      ratePrompt: "Before you go, please rate the service from 1 to 5.",
+      rateLabel: "Rate this chat",
+      rateThanks: "Thank you. I have sent this chat summary to our admin team.",
+      rateError: "I could not finish the chat summary email right now. Please try rating again.",
+      restart: "Start a new chat",
+      finished: "This chat has ended. You can start a new one any time.",
       greeting: "Hello! I am the BioPak virtual assistant. How can I help you today with our eco-friendly packaging?",
       error: "Sorry, I am having trouble connecting right now.",
       open: "Open chat",
@@ -96,7 +107,7 @@ export const translations = {
     },
     footer: {
       tagline: "Sustainable solutions for a greener Yemen.",
-      copyright: "© 2024 BioPak. All rights reserved.",
+      copyright: "© 2026 BioPak. All rights reserved.",
     },
   },
   ar: {
@@ -117,7 +128,7 @@ export const translations = {
     home: {
       heroTitle: "تغليف مستدام لغد أكثر اخضرارا",
       heroSubtitle: "توفر بايو باك حلول تغليف طعام صديقة للبيئة وقابلة للتحلل في اليمن.",
-      shopNow: "تسوق الآن",
+      shopNow: "اعرف المزيد",
       featuredProducts: "منتجات مميزة",
       viewAll: "عرض كل المنتجات",
       whyBiodegradable: "لماذا القابل للتحلل؟",
@@ -187,6 +198,17 @@ export const translations = {
       title: "دعم بايو باك",
       placeholder: "اكتب رسالتك...",
       send: "إرسال",
+      start: "ابدأ المحادثة",
+      emailPrompt: "قبل أن نبدأ، يرجى إدخال بريدك الإلكتروني.",
+      emailPlaceholder: "you@example.com",
+      invalidEmail: "يرجى إدخال بريد إلكتروني صحيح.",
+      end: "إنهاء المحادثة",
+      ratePrompt: "قبل أن تغادر، يرجى تقييم الخدمة من 1 إلى 5.",
+      rateLabel: "قيّم هذه المحادثة",
+      rateThanks: "شكرا لك. تم إرسال ملخص هذه المحادثة إلى فريق الإدارة.",
+      rateError: "تعذر إرسال ملخص المحادثة الآن. يرجى إعادة التقييم مرة أخرى.",
+      restart: "ابدأ محادثة جديدة",
+      finished: "انتهت هذه المحادثة. يمكنك بدء محادثة جديدة في أي وقت.",
       greeting: "مرحبا! أنا المساعد الافتراضي لشركة بايو باك. كيف يمكنني مساعدتك اليوم في حلول التغليف الصديقة للبيئة؟",
       error: "عذرا، أواجه مشكلة في الاتصال الآن.",
       open: "فتح المحادثة",
@@ -194,7 +216,7 @@ export const translations = {
     },
     footer: {
       tagline: "حلول مستدامة من أجل يمن أكثر اخضرارا.",
-      copyright: "© 2024 بايو باك. جميع الحقوق محفوظة.",
+      copyright: "© 2026 بايو باك. جميع الحقوق محفوظة.",
     },
   },
 } as const;
@@ -212,4 +234,3 @@ export function translate(lang: Lang, key: string): string {
 
   return typeof current === "string" ? current : key;
 }
-

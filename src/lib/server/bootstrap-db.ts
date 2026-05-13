@@ -116,6 +116,7 @@ async function runBootstrap() {
       CREATE TABLE IF NOT EXISTS site_settings (
         id INTEGER PRIMARY KEY DEFAULT 1,
         logo_url TEXT NOT NULL DEFAULT '/logo.png',
+        hero_images TEXT[] NOT NULL DEFAULT ARRAY['/hero.png'],
         contact_email TEXT NOT NULL DEFAULT 'info@biopak.ye',
         contact_phone TEXT NOT NULL DEFAULT '+967 1 234 567',
         address_en TEXT NOT NULL DEFAULT 'Sana''a, Yemen',
@@ -124,6 +125,27 @@ async function runBootstrap() {
         tagline_ar TEXT NOT NULL DEFAULT 'تغليف مستدام لغد أكثر اخضرارًا.',
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ADD COLUMN IF NOT EXISTS hero_images TEXT[];
+    `);
+
+    await client.query(`
+      UPDATE site_settings
+      SET hero_images = ARRAY['/hero.png']
+      WHERE hero_images IS NULL;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ALTER COLUMN hero_images SET DEFAULT ARRAY['/hero.png'];
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ALTER COLUMN hero_images SET NOT NULL;
     `);
 
     await client.query(
@@ -185,4 +207,3 @@ export function ensureDatabaseReady() {
   }
   return bootstrapPromise;
 }
-

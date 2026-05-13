@@ -43,6 +43,7 @@ export type UpdateInquiryInput = {
 
 export type SiteSettings = {
   logo_url: string;
+  hero_images: string[];
   contact_email: string;
   contact_phone: string;
   address_en: string;
@@ -74,10 +75,18 @@ export type ChatMessage = {
 export type ChatRequest = {
   messages: ChatMessage[];
   language: "en" | "ar";
+  customerEmail?: string;
 };
 
 export type ChatResponse = {
   reply: string;
+};
+
+export type ChatCompletionInput = {
+  messages: ChatMessage[];
+  language: "en" | "ar";
+  customerEmail: string;
+  rating: number;
 };
 
 type ValidationSuccess<T> = { success: true; data: T };
@@ -98,6 +107,34 @@ function parseNumber(value: unknown) {
   const candidate =
     typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   return Number.isFinite(candidate) ? candidate : null;
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function parseChatMessages(value: unknown): ValidationResult<ChatMessage[]> {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { success: false, error: "messages must be a non-empty array" };
+  }
+
+  const messages: ChatMessage[] = [];
+  for (const message of value) {
+    if (!isRecord(message)) {
+      return { success: false, error: "Invalid chat message" };
+    }
+    const role = message.role;
+    const content = asNonEmptyString(message.content);
+    if ((role !== "system" && role !== "user" && role !== "assistant") || !content) {
+      return { success: false, error: "Invalid chat message" };
+    }
+    messages.push({
+      role,
+      content,
+    });
+  }
+
+  return { success: true, data: messages };
 }
 
 export function parseProductInput(payload: unknown): ValidationResult<ProductInput> {
@@ -173,7 +210,7 @@ export function parseInquiryInput(payload: unknown): ValidationResult<InquiryInp
     return { success: false, error: "Invalid inquiry name" };
   }
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!email || !isValidEmail(email)) {
     return { success: false, error: "Invalid inquiry email" };
   }
 
@@ -239,7 +276,7 @@ export function parseSiteSettingsInput(
   }
 
   const output: SiteSettingsInput = {};
-  const keys: (keyof SiteSettings)[] = [
+  const keys: (keyof Omit<SiteSettings, "hero_images">)[] = [
     "logo_url",
     "contact_email",
     "contact_phone",
@@ -248,6 +285,22 @@ export function parseSiteSettingsInput(
     "tagline_en",
     "tagline_ar",
   ];
+
+  if ("hero_images" in payload) {
+    if (!Array.isArray(payload.hero_images) || payload.hero_images.length > 5) {
+      return { success: false, error: "Invalid value for hero_images" };
+    }
+
+    const heroImages = payload.hero_images
+      .map((value) => asNonEmptyString(value))
+      .filter((value): value is string => value !== null);
+
+    if (heroImages.length !== payload.hero_images.length) {
+      return { success: false, error: "Invalid value for hero_images" };
+    }
+
+    output.hero_images = heroImages;
+  }
 
   for (const key of keys) {
     if (key in payload) {
@@ -271,8 +324,40 @@ export function parseChatRequest(payload: unknown): ValidationResult<ChatRequest
     return { success: false, error: "Invalid payload" };
   }
 
-  if (!Array.isArray(payload.messages) || payload.messages.length === 0) {
-    return { success: false, error: "messages must be a non-empty array" };
+  const language = payload.language;
+  if (language !== "en" && language !== "ar") {
+    return { success: false, error: "language must be en or ar" };
+  }
+
+  const parsedMessages = parseChatMessages(payload.messages);
+  if (!parsedMessages.success) {
+    return parsedMessages;
+  }
+
+  const parsedCustomerEmail =
+    payload.customerEmail === undefined ? undefined : asNonEmptyString(payload.customerEmail);
+  if (
+    payload.customerEmail !== undefined &&
+    (!parsedCustomerEmail || !isValidEmail(parsedCustomerEmail))
+  ) {
+    return { success: false, error: "customerEmail must be a valid email address" };
+  }
+
+  return {
+    success: true,
+    data: {
+      messages: parsedMessages.data,
+      language,
+      customerEmail: parsedCustomerEmail ?? undefined,
+    },
+  };
+}
+
+export function parseChatCompletionInput(
+  payload: unknown,
+): ValidationResult<ChatCompletionInput> {
+  if (!isRecord(payload)) {
+    return { success: false, error: "Invalid payload" };
   }
 
   const language = payload.language;
@@ -280,30 +365,28 @@ export function parseChatRequest(payload: unknown): ValidationResult<ChatRequest
     return { success: false, error: "language must be en or ar" };
   }
 
-  const messages: ChatMessage[] = [];
-  for (const message of payload.messages) {
-    if (!isRecord(message)) {
-      return { success: false, error: "Invalid chat message" };
-    }
-    const role = message.role;
-    const content = asNonEmptyString(message.content);
-    if (
-      (role !== "system" && role !== "user" && role !== "assistant") ||
-      !content
-    ) {
-      return { success: false, error: "Invalid chat message" };
-    }
-    messages.push({
-      role,
-      content,
-    });
+  const customerEmail = asNonEmptyString(payload.customerEmail);
+  if (!customerEmail || !isValidEmail(customerEmail)) {
+    return { success: false, error: "customerEmail must be a valid email address" };
+  }
+
+  const rating = parseNumber(payload.rating);
+  if (rating === null || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return { success: false, error: "rating must be an integer between 1 and 5" };
+  }
+
+  const parsedMessages = parseChatMessages(payload.messages);
+  if (!parsedMessages.success) {
+    return parsedMessages;
   }
 
   return {
     success: true,
     data: {
-      messages,
+      messages: parsedMessages.data,
       language,
+      customerEmail,
+      rating,
     },
   };
 }
@@ -312,4 +395,3 @@ export function parsePositiveInt(value: string): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
-

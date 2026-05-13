@@ -17,6 +17,7 @@ type Theme = "light" | "dark";
 
 const defaultSettings: SiteSettings = {
   logo_url: "/logo.png",
+  hero_images: ["/hero.png"],
   contact_email: "info@biopak.ye",
   contact_phone: "+967-1-555-0100",
   address_en: "Sana'a, Yemen",
@@ -157,4 +158,3 @@ export function useSiteSettings() {
   }
   return context;
 }
-

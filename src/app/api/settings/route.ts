@@ -8,6 +8,7 @@ import { serializeSiteSettings } from "@/lib/server/serializers";
 
 const fallbackSettings = {
   logo_url: "/logo.png",
+  hero_images: ["/hero.png"],
   contact_email: "info@biopak.ye",
   contact_phone: "+967-1-555-0100",
   address_en: "Sana'a, Yemen",
@@ -21,7 +22,7 @@ async function getSettingsRow() {
 
   const result = await dbPool.query(`
     SELECT
-      logo_url, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar
+      logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar
     FROM site_settings
     WHERE id = 1;
   `);
@@ -71,7 +72,7 @@ export async function PATCH(request: NextRequest) {
       SET ${updates.join(", ")}
       WHERE id = 1
       RETURNING
-        logo_url, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar;
+        logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar;
     `;
 
     const result = await dbPool.query(query, values);
@@ -86,4 +87,3 @@ export async function PATCH(request: NextRequest) {
     throw error;
   }
 }
-

@@ -59,6 +59,7 @@ type ProductRow = {
 
 type SettingsRow = {
   logo_url: string;
+  hero_images: string[] | null;
   contact_email: string;
   contact_phone: string;
   address_en: string;
@@ -81,7 +82,7 @@ async function loadChatContext() {
       `),
       dbPool.query<SettingsRow>(`
         SELECT
-          logo_url, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar
+          logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar
         FROM site_settings
         WHERE id = 1;
       `),
@@ -179,6 +180,7 @@ export async function POST(request: NextRequest) {
       message: lastUserMessage,
       messages: enrichedMessages,
       language: parsed.data.language,
+      customerEmail: parsed.data.customerEmail ?? null,
       contactEmail,
       productCatalog: context.products,
     }),
@@ -210,4 +212,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ reply: cleanReply(reply) });
 }
-

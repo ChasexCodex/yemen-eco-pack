@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Upload, X } from "lucide-react";
 import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
 import { Skeleton } from "@/components/skeleton";
@@ -9,7 +10,7 @@ import { useApiSWR } from "@/lib/swr";
 import type { AdminStats, Inquiry, Product, ProductInput, SiteSettings } from "@/lib/types";
 
 type Tab = "stats" | "products" | "inquiries" | "settings";
-type UploadField = "product-image" | "logo-image";
+type UploadField = "product-image" | "logo-image" | "hero-image-new" | `hero-image-${number}`;
 
 type ProductFormState = {
   slug: string;
@@ -138,7 +139,14 @@ function ImageInput({
         </label>
         {value ? (
           <div className="overflow-hidden rounded-xl border border-border bg-white p-3">
-            <img src={value} alt={`${label} preview`} className="h-32 w-full object-contain" />
+            <Image
+              src={value}
+              alt={`${label} preview`}
+              width={640}
+              height={320}
+              unoptimized
+              className="h-32 w-full object-contain"
+            />
           </div>
         ) : null}
       </div>
@@ -173,6 +181,7 @@ export function AdminDashboard() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<UploadField | null>(null);
+  const [newHeroImageUrl, setNewHeroImageUrl] = useState("");
   const loading = statsLoading || productsLoading || inquiriesLoading || settingsLoading;
   const loadError = statsError ?? productsError ?? inquiriesError ?? settingsError;
 
@@ -264,6 +273,34 @@ export function AdminDashboard() {
     });
   };
 
+  const handleHeroImageUpload = async (
+    event: ChangeEvent<HTMLInputElement>,
+    index?: number,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (index === undefined && heroImages.length >= 5) {
+      setActionError("You can only keep up to 5 hero images.");
+      return;
+    }
+
+    await uploadImage({
+      file,
+      field: index === undefined ? "hero-image-new" : `hero-image-${index}`,
+      folder: "settings",
+      onUploaded: (url) => {
+        if (index === undefined) {
+          appendHeroImage(url);
+        } else {
+          updateHeroImage(index, url);
+        }
+      },
+    });
+  };
+
   const startEditProduct = (product: Product) => {
     setEditingProductId(product.id);
     setProductForm(productToForm(product));
@@ -344,11 +381,46 @@ export function AdminDashboard() {
     }
   };
 
-  const updateSettingsField = (field: keyof SiteSettings, value: string) => {
+  const updateSettingsField = <K extends keyof SiteSettings>(
+    field: K,
+    value: SiteSettings[K],
+  ) => {
     setSettingsForm((current) => ({
       ...(current ?? settingsData ?? {}),
       [field]: value,
     }) as SiteSettings);
+  };
+
+  const currentSettings = settingsForm ?? settingsData ?? null;
+  const heroImages = currentSettings?.hero_images ?? [];
+
+  const updateHeroImage = (index: number, value: string) => {
+    updateSettingsField(
+      "hero_images",
+      heroImages.map((image, imageIndex) => (imageIndex === index ? value : image)),
+    );
+  };
+
+  const removeHeroImage = (index: number) => {
+    updateSettingsField(
+      "hero_images",
+      heroImages.filter((_, imageIndex) => imageIndex !== index),
+    );
+  };
+
+  const appendHeroImage = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      setActionError("Hero image URL cannot be empty.");
+      return;
+    }
+    if (heroImages.length >= 5) {
+      setActionError("You can only keep up to 5 hero images.");
+      return;
+    }
+    updateSettingsField("hero_images", [...heroImages, trimmed]);
+    setNewHeroImageUrl("");
+    setActionError(null);
   };
 
   const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
@@ -598,37 +670,155 @@ export function AdminDashboard() {
         loading || !(settingsForm ?? settingsData) ? (
           <SettingsSkeleton />
         ) : (
-        <form onSubmit={saveSettings} className="max-w-3xl rounded-2xl border border-border bg-card p-6">
+        <form onSubmit={saveSettings} className="max-w-4xl rounded-2xl border border-border bg-card p-6">
             <h2 className="mb-5 text-xl font-bold">{t("admin.settings")}</h2>
             <div className="grid gap-4">
-              {Object.entries(settingsForm ?? settingsData ?? {}).map(([key, value]) => (
-                key === "logo_url" ? (
+            {currentSettings ? (
+              <>
                   <ImageInput
-                    key={key}
-                    label={key}
-                    value={String(value)}
-                    onChange={(nextValue) => updateSettingsField("logo_url", nextValue)}
-                    onUpload={handleLogoUpload}
-                    uploading={uploadingField === "logo-image"}
-                    disabled={saving}
+                  label="logo_url"
+                  value={currentSettings.logo_url}
+                  onChange={(nextValue) => updateSettingsField("logo_url", nextValue)}
+                  onUpload={handleLogoUpload}
+                  uploading={uploadingField === "logo-image"}
+                  disabled={saving}
+                />
+                <div className="grid gap-4 rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-semibold">hero_images</h3>
+                      <p className="text-sm text-muted">
+                        Up to 5 images. These are used in the homepage hero carousel.
+                      </p>
+                    </div>
+                    <span className="text-sm text-muted">{heroImages.length}/5</span>
+                  </div>
+
+                  {heroImages.length > 0 ? (
+                    <div className="grid gap-4">
+                      {heroImages.map((image, index) => (
+                        <div key={`${image}-${index}`} className="grid gap-3 rounded-xl border border-border p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-medium">Hero image {index + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeHeroImage(index)}
+                              className="rounded border border-red-300 p-2 text-red-700 hover:bg-red-50"
+                              aria-label={`Remove hero image ${index + 1}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <ImageInput
+                            label={`hero_image_${index + 1}`}
+                            value={image}
+                            onChange={(nextValue) => updateHeroImage(index, nextValue)}
+                            onUpload={(event) => handleHeroImageUpload(event, index)}
+                            uploading={uploadingField === `hero-image-${index}`}
+                            disabled={saving}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      No hero images configured. Add one below to replace the current fallback image.
+                    </p>
+                  )}
+
+                  {heroImages.length < 5 ? (
+                    <div className="grid gap-3 rounded-xl border border-dashed border-border p-4">
+                      <Field label="Add hero image URL">
+                        <div className="flex gap-2">
+                          <input
+                            className={inputClassName}
+                            value={newHeroImageUrl}
+                            onChange={(event) => setNewHeroImageUrl(event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => appendHeroImage(newHeroImageUrl)}
+                            className="rounded-lg border border-border px-4 py-2 font-semibold hover:bg-background"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </Field>
+                      <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-background">
+                        <Upload className="h-4 w-4" />
+                        <span>
+                          {uploadingField === "hero-image-new"
+                            ? "Uploading hero image..."
+                            : "Upload hero image from storage"}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            void handleHeroImageUpload(event);
+                          }}
+                          disabled={saving || uploadingField === "hero-image-new"}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+
+                <Field label="contact_email">
+                  <input
+                    className={inputClassName}
+                    value={currentSettings.contact_email}
+                    onChange={(event) => updateSettingsField("contact_email", event.target.value)}
+                    required
                   />
-                ) : key.includes("tagline") ? (
-                  <Field key={key} label={key}>
-                    <textarea
-                      className={textareaClassName}
-                      rows={2}
-                      value={value}
-                      onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)}
-                      dir={key.endsWith("_ar") ? "rtl" : "ltr"}
-                      required
-                    />
-                  </Field>
-                ) : (
-                  <Field key={key} label={key}>
-                    <input className={inputClassName} value={value} onChange={(event) => updateSettingsField(key as keyof SiteSettings, event.target.value)} dir={key.endsWith("_ar") ? "rtl" : "ltr"} required />
-                  </Field>
-                )
-              ))}
+                </Field>
+                <Field label="contact_phone">
+                  <input
+                    className={inputClassName}
+                    value={currentSettings.contact_phone}
+                    onChange={(event) => updateSettingsField("contact_phone", event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="address_en">
+                  <input
+                    className={inputClassName}
+                    value={currentSettings.address_en}
+                    onChange={(event) => updateSettingsField("address_en", event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="address_ar">
+                  <input
+                    className={inputClassName}
+                    value={currentSettings.address_ar}
+                    onChange={(event) => updateSettingsField("address_ar", event.target.value)}
+                    dir="rtl"
+                    required
+                  />
+                </Field>
+                <Field label="tagline_en">
+                  <textarea
+                    className={textareaClassName}
+                    rows={2}
+                    value={currentSettings.tagline_en}
+                    onChange={(event) => updateSettingsField("tagline_en", event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="tagline_ar">
+                  <textarea
+                    className={textareaClassName}
+                    rows={2}
+                    value={currentSettings.tagline_ar}
+                    onChange={(event) => updateSettingsField("tagline_ar", event.target.value)}
+                    dir="rtl"
+                    required
+                  />
+                </Field>
+              </>
+            ) : null}
             <button className="w-fit rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-60" disabled={saving}>
               {t("admin.save")}
             </button>
@@ -777,4 +967,3 @@ function InquiryEditor({
     </article>
   );
 }
-

@@ -3,8 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { SiteShell } from "@/components/site-shell";
 import { AdminDashboard } from "@/components/admin-dashboard";
-
-const DEFAULT_ADMIN_EMAIL = "elaf.a.amri@gmail.com";
+import { resolveAdminEmail } from "@/lib/server/admin-config";
 
 export default async function AdminPage() {
   const { userId } = await auth();
@@ -15,12 +14,11 @@ export default async function AdminPage() {
   const user = await currentUser();
   const email =
     user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
-  const adminEmail = process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL;
-  const isAdmin = email?.toLowerCase() === adminEmail.toLowerCase();
+  const isAdmin = email?.toLowerCase() === resolveAdminEmail();
 
   if (!isAdmin) {
     return (
-      <SiteShell>
+      <SiteShell showFooterContactForm={false}>
         <section className="container py-16">
           <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-8 text-center">
             <h1 className="mb-3 text-2xl font-bold text-foreground">Access denied</h1>
@@ -40,9 +38,8 @@ export default async function AdminPage() {
   }
 
   return (
-    <SiteShell>
+    <SiteShell showFooterContactForm={false}>
       <AdminDashboard />
     </SiteShell>
   );
 }
-

@@ -40,6 +40,7 @@ export type InquiryInput = {
 
 export type SiteSettings = {
   logo_url: string;
+  hero_images: string[];
   contact_email: string;
   contact_phone: string;
   address_en: string;
@@ -61,3 +62,19 @@ export type ChatMessage = {
   content: string;
 };
 
+export type ChatRequest = {
+  messages: ChatMessage[];
+  language: Lang;
+  customerEmail?: string;
+};
+
+export type ChatResponse = {
+  reply: string;
+};
+
+export type ChatCompletionRequest = {
+  messages: ChatMessage[];
+  language: Lang;
+  customerEmail: string;
+  rating: number;
+};

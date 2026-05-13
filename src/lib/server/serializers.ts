@@ -31,6 +31,7 @@ type InquiryDbRow = {
 
 type SiteSettingsDbRow = {
   logo_url: string;
+  hero_images: string[] | null;
   contact_email: string;
   contact_phone: string;
   address_en: string;
@@ -83,6 +84,7 @@ export function serializeInquiry(row: InquiryDbRow): Inquiry {
 export function serializeSiteSettings(row: SiteSettingsDbRow): SiteSettings {
   return {
     logo_url: row.logo_url,
+    hero_images: row.hero_images?.filter((value) => value.trim().length > 0) ?? ["/hero.png"],
     contact_email: row.contact_email,
     contact_phone: row.contact_phone,
     address_en: row.address_en,
@@ -91,4 +93,3 @@ export function serializeSiteSettings(row: SiteSettingsDbRow): SiteSettings {
     tagline_ar: row.tagline_ar,
   };
 }
-
