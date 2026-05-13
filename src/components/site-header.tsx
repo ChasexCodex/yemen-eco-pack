@@ -9,14 +9,6 @@ import { useLanguage, useSiteSettings, useTheme } from "@/components/app-provide
 import { Skeleton } from "@/components/skeleton";
 import { useApiSWR } from "@/lib/swr";
 
-const navItems = [
-  { href: "/", key: "nav.home" },
-  { href: "/products", key: "nav.products" },
-  { href: "/materials", key: "nav.materials" },
-  { href: "/about", key: "nav.about" },
-  { href: "/contact", key: "nav.contact" },
-];
-
 export function SiteHeader() {
   const { lang, setLang, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -28,6 +20,19 @@ export function SiteHeader() {
     { shouldRetryOnError: false },
   );
   const isAdmin = adminStatus?.is_admin ?? false;
+  const isArabic = lang === "ar";
+  const siteName = isArabic ? settings.site_name_ar : settings.site_name_en;
+  const headerContent = settings.page_content.header;
+  const navItems = [
+    { href: "/", label: isArabic ? headerContent.nav_home_ar : headerContent.nav_home_en },
+    { href: "/products", label: isArabic ? headerContent.nav_products_ar : headerContent.nav_products_en },
+    {
+      href: "/materials",
+      label: isArabic ? headerContent.nav_materials_ar : headerContent.nav_materials_en,
+    },
+    { href: "/about", label: isArabic ? headerContent.nav_about_ar : headerContent.nav_about_en },
+    { href: "/contact", label: isArabic ? headerContent.nav_contact_ar : headerContent.nav_contact_en },
+  ];
 
   const toggleLang = () => setLang(lang === "ar" ? "en" : "ar");
   const navLinks = (
@@ -39,7 +44,7 @@ export function SiteHeader() {
           className="text-sm font-medium hover:text-primary"
           onClick={() => setMenuOpen(false)}
         >
-          {t(item.key)}
+          {item.label}
         </Link>
       ))}
     </>
@@ -59,13 +64,13 @@ export function SiteHeader() {
               <>
                 <Image
                   src={settings.logo_url}
-                  alt="BioPak logo"
+                  alt={`${siteName} logo`}
                   width={32}
                   height={32}
                   unoptimized
                   className="h-8 w-8 rounded p-1 object-contain"
                 />
-                <span className="text-xl font-bold text-primary">BioPak</span>
+                <span className="text-xl font-bold text-primary">{siteName}</span>
               </>
             )}
           </Link>

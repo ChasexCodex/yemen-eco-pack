@@ -4,7 +4,12 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { useLanguage } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
-import type { ChatCompletionRequest, ChatMessage, ChatResponse } from "@/lib/types";
+import type {
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+  ChatMessage,
+  ChatResponse,
+} from "@/lib/types";
 
 type ChatStage = "email" | "chat" | "rating" | "complete";
 
@@ -99,7 +104,7 @@ export function Chatbot() {
     setLocalError(null);
 
     try {
-      await apiRequest<{ ok: true }>("/api/chat/complete", {
+      const response = await apiRequest<ChatCompletionResponse>("/api/chat/complete", {
         method: "POST",
         body: JSON.stringify({
           messages,
@@ -108,7 +113,15 @@ export function Chatbot() {
           rating,
         } satisfies ChatCompletionRequest),
       });
-      setMessages((current) => [...current, { role: "assistant", content: t("chatbot.rateThanks") }]);
+
+      const completionMessage =
+        response.emailStatus === "sent"
+          ? t("chatbot.rateThanks")
+          : response.emailStatus === "not_configured"
+            ? t("chatbot.rateNoEmail")
+            : t("chatbot.rateSavedWithoutEmail");
+
+      setMessages((current) => [...current, { role: "assistant", content: completionMessage }]);
       setStage("complete");
     } catch {
       setLocalError(t("chatbot.rateError"));

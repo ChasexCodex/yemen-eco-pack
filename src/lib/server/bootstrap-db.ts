@@ -118,6 +118,8 @@ async function runBootstrap() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS site_settings (
         id INTEGER PRIMARY KEY DEFAULT 1,
+        site_name_en TEXT NOT NULL DEFAULT 'BioPak',
+        site_name_ar TEXT NOT NULL DEFAULT 'بايو باك',
         logo_url TEXT NOT NULL DEFAULT '/logo.png',
         hero_images TEXT[] NOT NULL DEFAULT ARRAY['/hero.png'],
         contact_email TEXT NOT NULL DEFAULT 'info@biopak.ye',
@@ -133,12 +135,34 @@ async function runBootstrap() {
 
     await client.query(`
       ALTER TABLE site_settings
+      ADD COLUMN IF NOT EXISTS site_name_en TEXT;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ADD COLUMN IF NOT EXISTS site_name_ar TEXT;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
       ADD COLUMN IF NOT EXISTS hero_images TEXT[];
     `);
 
     await client.query(`
       ALTER TABLE site_settings
       ADD COLUMN IF NOT EXISTS page_content JSONB;
+    `);
+
+    await client.query(`
+      UPDATE site_settings
+      SET site_name_en = 'BioPak'
+      WHERE site_name_en IS NULL;
+    `);
+
+    await client.query(`
+      UPDATE site_settings
+      SET site_name_ar = 'بايو باك'
+      WHERE site_name_ar IS NULL;
     `);
 
     await client.query(`
@@ -158,12 +182,32 @@ async function runBootstrap() {
 
     await client.query(`
       ALTER TABLE site_settings
+      ALTER COLUMN site_name_en SET DEFAULT 'BioPak';
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ALTER COLUMN site_name_ar SET DEFAULT 'بايو باك';
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
       ALTER COLUMN hero_images SET DEFAULT ARRAY['/hero.png'];
     `);
 
     await client.query(`
       ALTER TABLE site_settings
       ALTER COLUMN page_content SET DEFAULT '${defaultPageContentSql}'::jsonb;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ALTER COLUMN site_name_en SET NOT NULL;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ALTER COLUMN site_name_ar SET NOT NULL;
     `);
 
     await client.query(`

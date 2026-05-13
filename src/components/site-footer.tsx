@@ -14,8 +14,23 @@ export function SiteFooter({ showContactForm = true }: { showContactForm?: boole
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
 
+  const isArabic = lang === "ar";
   const address = lang === "ar" ? settings.address_ar : settings.address_en;
   const tagline = lang === "ar" ? settings.tagline_ar : settings.tagline_en;
+  const siteName = isArabic ? settings.site_name_ar : settings.site_name_en;
+  const contactContent = settings.page_content.contact;
+  const headerContent = settings.page_content.header;
+  const footerContent = settings.page_content.footer;
+  const footerNavItems = [
+    { href: "/", label: isArabic ? headerContent.nav_home_ar : headerContent.nav_home_en },
+    { href: "/products", label: isArabic ? headerContent.nav_products_ar : headerContent.nav_products_en },
+    {
+      href: "/materials",
+      label: isArabic ? headerContent.nav_materials_ar : headerContent.nav_materials_en,
+    },
+    { href: "/about", label: isArabic ? headerContent.nav_about_ar : headerContent.nav_about_en },
+    { href: "/contact", label: isArabic ? headerContent.nav_contact_ar : headerContent.nav_contact_en },
+  ];
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -45,9 +60,11 @@ export function SiteFooter({ showContactForm = true }: { showContactForm?: boole
       <div className={`container grid gap-12 py-12 ${showContactForm ? "md:grid-cols-2" : ""}`}>
         {showContactForm ? (
           <div>
-            <h3 className="mb-4 text-2xl font-bold">{t("contact.title")}</h3>
+            <h3 className="mb-4 text-2xl font-bold">
+              {isArabic ? contactContent.title_ar : contactContent.title_en}
+            </h3>
             <p className="mb-6 text-muted">
-              {t("contact.subtitle")}
+              {isArabic ? contactContent.subtitle_ar : contactContent.subtitle_en}
             </p>
             <form className="max-w-md space-y-4" onSubmit={onSubmit}>
               <input
@@ -111,13 +128,13 @@ export function SiteFooter({ showContactForm = true }: { showContactForm?: boole
               <div className="mb-4 flex items-center gap-2">
                 <Image
                   src={settings.logo_url}
-                  alt="BioPak"
+                  alt={siteName}
                   width={36}
                   height={36}
                   unoptimized
                   className="h-9 w-9 rounded p-1 object-contain"
                 />
-                <span className="text-2xl font-bold text-primary">BioPak</span>
+                <span className="text-2xl font-bold text-primary">{siteName}</span>
               </div>
               <p className="mb-6 text-muted">
                 {tagline}
@@ -142,27 +159,17 @@ export function SiteFooter({ showContactForm = true }: { showContactForm?: boole
             </>
           )}
           <div className="flex gap-4 text-sm text-muted">
-            <Link href="/" className="hover:text-primary">
-              {t("nav.home")}
-            </Link>
-            <Link href="/products" className="hover:text-primary">
-              {t("nav.products")}
-            </Link>
-            <Link href="/materials" className="hover:text-primary">
-              {t("nav.materials")}
-            </Link>
-            <Link href="/about" className="hover:text-primary">
-              {t("nav.about")}
-            </Link>
-            <Link href="/contact" className="hover:text-primary">
-              {t("nav.contact")}
-            </Link>
+            {footerNavItems.map((item) => (
+              <Link key={item.href} href={item.href} className="hover:text-primary">
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
 
       <div className="container border-t border-border/70 py-6 text-center text-sm text-muted">
-        {t("footer.copyright")}
+        {isArabic ? footerContent.copyright_ar : footerContent.copyright_en}
       </div>
     </footer>
   );

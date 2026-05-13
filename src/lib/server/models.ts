@@ -42,6 +42,8 @@ export type UpdateInquiryInput = {
 };
 
 export type SiteSettings = {
+  site_name_en: string;
+  site_name_ar: string;
   logo_url: string;
   hero_images: string[];
   contact_email: string;
@@ -72,6 +74,18 @@ export type MaterialPageItem = {
 };
 
 export type PageContent = {
+  header: {
+    nav_home_en: string;
+    nav_home_ar: string;
+    nav_products_en: string;
+    nav_products_ar: string;
+    nav_materials_en: string;
+    nav_materials_ar: string;
+    nav_about_en: string;
+    nav_about_ar: string;
+    nav_contact_en: string;
+    nav_contact_ar: string;
+  };
   home: {
     hero_title_en: string;
     hero_title_ar: string;
@@ -126,6 +140,10 @@ export type PageContent = {
     subtitle_ar: string;
     form_title_en: string;
     form_title_ar: string;
+  };
+  footer: {
+    copyright_en: string;
+    copyright_ar: string;
   };
 };
 
@@ -276,17 +294,21 @@ function parsePageContent(value: unknown): ValidationResult<PageContent> {
   }
 
   const home = value.home;
+  const header = value.header;
   const products = value.products;
   const materials = value.materials;
   const about = value.about;
   const contact = value.contact;
+  const footer = value.footer;
 
   if (
+    !isRecord(header) ||
     !isRecord(home) ||
     !isRecord(products) ||
     !isRecord(materials) ||
     !isRecord(about) ||
-    !isRecord(contact)
+    !isRecord(contact) ||
+    !isRecord(footer)
   ) {
     return { success: false, error: "Invalid page content" };
   }
@@ -297,6 +319,18 @@ function parsePageContent(value: unknown): ValidationResult<PageContent> {
   }
 
   const parsed: PageContent = {
+    header: {
+      nav_home_en: getRequiredString(header, "nav_home_en") ?? "",
+      nav_home_ar: getRequiredString(header, "nav_home_ar") ?? "",
+      nav_products_en: getRequiredString(header, "nav_products_en") ?? "",
+      nav_products_ar: getRequiredString(header, "nav_products_ar") ?? "",
+      nav_materials_en: getRequiredString(header, "nav_materials_en") ?? "",
+      nav_materials_ar: getRequiredString(header, "nav_materials_ar") ?? "",
+      nav_about_en: getRequiredString(header, "nav_about_en") ?? "",
+      nav_about_ar: getRequiredString(header, "nav_about_ar") ?? "",
+      nav_contact_en: getRequiredString(header, "nav_contact_en") ?? "",
+      nav_contact_ar: getRequiredString(header, "nav_contact_ar") ?? "",
+    },
     home: {
       hero_title_en: getRequiredString(home, "hero_title_en") ?? "",
       hero_title_ar: getRequiredString(home, "hero_title_ar") ?? "",
@@ -352,16 +386,22 @@ function parsePageContent(value: unknown): ValidationResult<PageContent> {
       form_title_en: getRequiredString(contact, "form_title_en") ?? "",
       form_title_ar: getRequiredString(contact, "form_title_ar") ?? "",
     },
+    footer: {
+      copyright_en: getRequiredString(footer, "copyright_en") ?? "",
+      copyright_ar: getRequiredString(footer, "copyright_ar") ?? "",
+    },
   };
 
   const hasEmptyField =
+    Object.values(parsed.header).some((field) => field.length === 0) ||
     Object.values(parsed.home).some((field) => field.length === 0) ||
     Object.values(parsed.products).some((field) => field.length === 0) ||
     Object.entries(parsed.materials)
       .filter(([key]) => key !== "items")
       .some(([, field]) => typeof field === "string" && field.length === 0) ||
     Object.values(parsed.about).some((field) => field.length === 0) ||
-    Object.values(parsed.contact).some((field) => field.length === 0);
+    Object.values(parsed.contact).some((field) => field.length === 0) ||
+    Object.values(parsed.footer).some((field) => field.length === 0);
 
   if (hasEmptyField) {
     return { success: false, error: "Invalid page content" };
@@ -534,6 +574,8 @@ export function parseSiteSettingsInput(
 
   const output: SiteSettingsInput = {};
   const keys: (keyof Omit<SiteSettings, "hero_images" | "page_content">)[] = [
+    "site_name_en",
+    "site_name_ar",
     "logo_url",
     "contact_email",
     "contact_phone",

@@ -92,6 +92,18 @@ const defaultMaterialItems: MaterialPageItem[] = [
 ];
 
 export const defaultPageContent: PageContent = {
+  header: {
+    nav_home_en: "Home",
+    nav_home_ar: "الرئيسية",
+    nav_products_en: "Products",
+    nav_products_ar: "المنتجات",
+    nav_materials_en: "Materials",
+    nav_materials_ar: "المواد",
+    nav_about_en: "About",
+    nav_about_ar: "من نحن",
+    nav_contact_en: "Contact",
+    nav_contact_ar: "اتصل بنا",
+  },
   home: {
     hero_title_en: "Sustainable Packaging for a Greener Tomorrow",
     hero_title_ar: "تغليف مستدام لغد أكثر اخضرارا",
@@ -155,9 +167,15 @@ export const defaultPageContent: PageContent = {
     form_title_en: "Send an Inquiry",
     form_title_ar: "إرسال استفسار",
   },
+  footer: {
+    copyright_en: "© 2026 BioPak. All rights reserved.",
+    copyright_ar: "© 2026 بايو باك. جميع الحقوق محفوظة.",
+  },
 };
 
 export const defaultSiteSettings: SiteSettings = {
+  site_name_en: "BioPak",
+  site_name_ar: "بايو باك",
   logo_url: "/logo.png",
   hero_images: ["/hero.png"],
   contact_email: "info@biopak.ye",

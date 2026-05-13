@@ -9,17 +9,35 @@ type SendChatSummaryEmailInput = {
   messages: ChatMessage[];
 };
 
-function getMailerConfig() {
+function readMailerConfig() {
   const host = process.env.SMTP_HOST?.trim();
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASSWORD?.trim();
-  const from = process.env.SMTP_FROM?.trim();
+  const user = process.env.SMTP_USER?.trim() || process.env.SMTP_USERNAME?.trim();
+  const pass = process.env.SMTP_PASSWORD?.trim() || process.env.SMTP_PASS?.trim();
+  const from = process.env.SMTP_FROM?.trim() || user;
   const port = Number(process.env.SMTP_PORT ?? "587");
   const secure = process.env.SMTP_SECURE === "true" || port === 465;
 
+  return {
+    host,
+    user,
+    pass,
+    from,
+    port,
+    secure,
+  };
+}
+
+export function isChatEmailConfigured() {
+  const { host, user, pass, from } = readMailerConfig();
+  return Boolean(host && user && pass && from);
+}
+
+function getMailerConfig() {
+  const { host, user, pass, from, port, secure } = readMailerConfig();
+
   if (!host || !user || !pass || !from) {
     throw new Error(
-      "SMTP email delivery is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM.",
+      "SMTP email delivery is not configured. Set SMTP_HOST, SMTP_USER or SMTP_USERNAME, SMTP_PASSWORD or SMTP_PASS, and SMTP_FROM.",
     );
   }
 

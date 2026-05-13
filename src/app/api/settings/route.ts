@@ -12,7 +12,7 @@ async function getSettingsRow() {
 
   const result = await dbPool.query(`
     SELECT
-      logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content
+      site_name_en, site_name_ar, logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content
     FROM site_settings
     WHERE id = 1;
   `);
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest) {
       SET ${updates.join(", ")}
       WHERE id = 1
       RETURNING
-        logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content;
+        site_name_en, site_name_ar, logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content;
     `;
 
     const result = await dbPool.query(query, values);

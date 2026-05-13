@@ -67,6 +67,8 @@ type ProductRow = {
 };
 
 type SettingsRow = {
+  site_name_en: string;
+  site_name_ar: string;
   logo_url: string;
   hero_images: string[] | null;
   contact_email: string;
@@ -92,7 +94,7 @@ async function loadChatContext() {
       `),
       dbPool.query<SettingsRow>(`
         SELECT
-          logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content
+          site_name_en, site_name_ar, logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content
         FROM site_settings
         WHERE id = 1;
       `),

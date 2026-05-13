@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseChatCompletionInput } from "@/lib/server/models";
-import { sendChatSummaryEmail } from "@/lib/server/chat-email";
+import { isChatEmailConfigured, sendChatSummaryEmail } from "@/lib/server/chat-email";
 
 export async function POST(request: NextRequest) {
   const payload = await request.json();
@@ -9,18 +9,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
+  if (!isChatEmailConfigured()) {
+    return NextResponse.json({ ok: true, emailStatus: "not_configured" as const });
+  }
+
   try {
     await sendChatSummaryEmail(parsed.data);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, emailStatus: "sent" as const });
   } catch (error: unknown) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to send the completed chat email.",
-      },
-      { status: 500 },
-    );
+    console.error("Chat summary email failed", error);
+    return NextResponse.json({ ok: true, emailStatus: "failed" as const });
   }
 }

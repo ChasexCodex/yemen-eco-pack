@@ -824,7 +824,24 @@ export function AdminDashboard() {
                   uploading={uploadingField === "logo-image"}
                   disabled={saving}
                 />
-                <div className="grid gap-4 rounded-xl border border-border p-4">
+                  <Field label="site_name_en">
+                    <input
+                      className={inputClassName}
+                      value={currentSettings.site_name_en}
+                      onChange={(event) => updateSettingsField("site_name_en", event.target.value)}
+                      required
+                    />
+                  </Field>
+                  <Field label="site_name_ar">
+                    <input
+                      className={inputClassName}
+                      value={currentSettings.site_name_ar}
+                      onChange={(event) => updateSettingsField("site_name_ar", event.target.value)}
+                      dir="rtl"
+                      required
+                    />
+                  </Field>
+                  <div className="grid gap-4 rounded-xl border border-border p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <h3 className="text-sm font-semibold">hero_images</h3>
@@ -975,6 +992,42 @@ export function AdminDashboard() {
           <form onSubmit={savePages} className="max-w-5xl rounded-2xl border border-border bg-card p-6">
             <h2 className="mb-5 text-xl font-bold">{t("admin.pages")}</h2>
             <div className="grid gap-6">
+              <section className="rounded-2xl border border-border p-5">
+                <h3 className="mb-4 text-lg font-semibold">Header</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="nav_home_en">
+                    <input className={inputClassName} value={pageContent.header.nav_home_en} onChange={(event) => updatePageField("header", "nav_home_en", event.target.value)} />
+                  </Field>
+                  <Field label="nav_home_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.header.nav_home_ar} onChange={(event) => updatePageField("header", "nav_home_ar", event.target.value)} />
+                  </Field>
+                  <Field label="nav_products_en">
+                    <input className={inputClassName} value={pageContent.header.nav_products_en} onChange={(event) => updatePageField("header", "nav_products_en", event.target.value)} />
+                  </Field>
+                  <Field label="nav_products_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.header.nav_products_ar} onChange={(event) => updatePageField("header", "nav_products_ar", event.target.value)} />
+                  </Field>
+                  <Field label="nav_materials_en">
+                    <input className={inputClassName} value={pageContent.header.nav_materials_en} onChange={(event) => updatePageField("header", "nav_materials_en", event.target.value)} />
+                  </Field>
+                  <Field label="nav_materials_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.header.nav_materials_ar} onChange={(event) => updatePageField("header", "nav_materials_ar", event.target.value)} />
+                  </Field>
+                  <Field label="nav_about_en">
+                    <input className={inputClassName} value={pageContent.header.nav_about_en} onChange={(event) => updatePageField("header", "nav_about_en", event.target.value)} />
+                  </Field>
+                  <Field label="nav_about_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.header.nav_about_ar} onChange={(event) => updatePageField("header", "nav_about_ar", event.target.value)} />
+                  </Field>
+                  <Field label="nav_contact_en">
+                    <input className={inputClassName} value={pageContent.header.nav_contact_en} onChange={(event) => updatePageField("header", "nav_contact_en", event.target.value)} />
+                  </Field>
+                  <Field label="nav_contact_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.header.nav_contact_ar} onChange={(event) => updatePageField("header", "nav_contact_ar", event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+
               <section className="rounded-2xl border border-border p-5">
                 <h3 className="mb-4 text-lg font-semibold">Home page</h3>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1194,6 +1247,18 @@ export function AdminDashboard() {
                   </Field>
                   <Field label="form_title_ar">
                     <input className={inputClassName} dir="rtl" value={pageContent.contact.form_title_ar} onChange={(event) => updatePageField("contact", "form_title_ar", event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-border p-5">
+                <h3 className="mb-4 text-lg font-semibold">Footer</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="copyright_en">
+                    <input className={inputClassName} value={pageContent.footer.copyright_en} onChange={(event) => updatePageField("footer", "copyright_en", event.target.value)} />
+                  </Field>
+                  <Field label="copyright_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.footer.copyright_ar} onChange={(event) => updatePageField("footer", "copyright_ar", event.target.value)} />
                   </Field>
                 </div>
               </section>

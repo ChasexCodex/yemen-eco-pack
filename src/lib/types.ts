@@ -17,6 +17,18 @@ export type MaterialPageItem = {
 };
 
 export type PageContent = {
+  header: {
+    nav_home_en: string;
+    nav_home_ar: string;
+    nav_products_en: string;
+    nav_products_ar: string;
+    nav_materials_en: string;
+    nav_materials_ar: string;
+    nav_about_en: string;
+    nav_about_ar: string;
+    nav_contact_en: string;
+    nav_contact_ar: string;
+  };
   home: {
     hero_title_en: string;
     hero_title_ar: string;
@@ -72,6 +84,10 @@ export type PageContent = {
     form_title_en: string;
     form_title_ar: string;
   };
+  footer: {
+    copyright_en: string;
+    copyright_ar: string;
+  };
 };
 
 export type Product = {
@@ -113,6 +129,8 @@ export type InquiryInput = {
 };
 
 export type SiteSettings = {
+  site_name_en: string;
+  site_name_ar: string;
   logo_url: string;
   hero_images: string[];
   contact_email: string;
@@ -152,4 +170,9 @@ export type ChatCompletionRequest = {
   language: Lang;
   customerEmail: string;
   rating: number;
+};
+
+export type ChatCompletionResponse = {
+  ok: true;
+  emailStatus: "sent" | "not_configured" | "failed";
 };
