@@ -50,9 +50,84 @@ export type SiteSettings = {
   address_ar: string;
   tagline_en: string;
   tagline_ar: string;
+  page_content: PageContent;
 };
 
 export type SiteSettingsInput = Partial<SiteSettings>;
+
+export type MaterialPageReference = {
+  title: string;
+  url: string;
+};
+
+export type MaterialPageItem = {
+  id: string;
+  title_en: string;
+  title_ar: string;
+  what_en: string;
+  what_ar: string;
+  benefits_en: string;
+  benefits_ar: string;
+  links: MaterialPageReference[];
+};
+
+export type PageContent = {
+  home: {
+    hero_title_en: string;
+    hero_title_ar: string;
+    hero_subtitle_en: string;
+    hero_subtitle_ar: string;
+    cta_label_en: string;
+    cta_label_ar: string;
+    featured_title_en: string;
+    featured_title_ar: string;
+    featured_link_label_en: string;
+    featured_link_label_ar: string;
+    why_title_en: string;
+    why_title_ar: string;
+    why_text_en: string;
+    why_text_ar: string;
+    materials_link_label_en: string;
+    materials_link_label_ar: string;
+  };
+  products: {
+    title_en: string;
+    title_ar: string;
+    subtitle_en: string;
+    subtitle_ar: string;
+    empty_en: string;
+    empty_ar: string;
+  };
+  materials: {
+    title_en: string;
+    title_ar: string;
+    subtitle_en: string;
+    subtitle_ar: string;
+    references_label_en: string;
+    references_label_ar: string;
+    items: MaterialPageItem[];
+  };
+  about: {
+    title_en: string;
+    title_ar: string;
+    mission_title_en: string;
+    mission_title_ar: string;
+    mission_text_en: string;
+    mission_text_ar: string;
+    vision_title_en: string;
+    vision_title_ar: string;
+    vision_text_en: string;
+    vision_text_ar: string;
+  };
+  contact: {
+    title_en: string;
+    title_ar: string;
+    subtitle_en: string;
+    subtitle_ar: string;
+    form_title_en: string;
+    form_title_ar: string;
+  };
+};
 
 export type AdminStatus = {
   is_admin: boolean;
@@ -111,6 +186,188 @@ function parseNumber(value: unknown) {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getRequiredString(payload: Record<string, unknown>, key: string) {
+  return asNonEmptyString(payload[key]);
+}
+
+function parseMaterialReferences(value: unknown): ValidationResult<MaterialPageReference[]> {
+  if (!Array.isArray(value)) {
+    return { success: false, error: "Invalid material links" };
+  }
+
+  const links: MaterialPageReference[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) {
+      return { success: false, error: "Invalid material links" };
+    }
+    const title = asNonEmptyString(item.title);
+    const url = asNonEmptyString(item.url);
+    if (!title || !url || !isValidHttpUrl(url)) {
+      return { success: false, error: "Invalid material links" };
+    }
+    links.push({ title, url });
+  }
+
+  return { success: true, data: links };
+}
+
+function parseMaterialItems(value: unknown): ValidationResult<MaterialPageItem[]> {
+  if (!Array.isArray(value)) {
+    return { success: false, error: "Invalid materials items" };
+  }
+
+  const items: MaterialPageItem[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) {
+      return { success: false, error: "Invalid materials items" };
+    }
+
+    const id = asNonEmptyString(item.id);
+    const title_en = asNonEmptyString(item.title_en);
+    const title_ar = asNonEmptyString(item.title_ar);
+    const what_en = asNonEmptyString(item.what_en);
+    const what_ar = asNonEmptyString(item.what_ar);
+    const benefits_en = asNonEmptyString(item.benefits_en);
+    const benefits_ar = asNonEmptyString(item.benefits_ar);
+    const links = parseMaterialReferences(item.links);
+
+    if (
+      !id ||
+      !title_en ||
+      !title_ar ||
+      !what_en ||
+      !what_ar ||
+      !benefits_en ||
+      !benefits_ar ||
+      !links.success
+    ) {
+      return { success: false, error: "Invalid materials items" };
+    }
+
+    items.push({
+      id,
+      title_en,
+      title_ar,
+      what_en,
+      what_ar,
+      benefits_en,
+      benefits_ar,
+      links: links.data,
+    });
+  }
+
+  return { success: true, data: items };
+}
+
+function parsePageContent(value: unknown): ValidationResult<PageContent> {
+  if (!isRecord(value)) {
+    return { success: false, error: "Invalid page content" };
+  }
+
+  const home = value.home;
+  const products = value.products;
+  const materials = value.materials;
+  const about = value.about;
+  const contact = value.contact;
+
+  if (
+    !isRecord(home) ||
+    !isRecord(products) ||
+    !isRecord(materials) ||
+    !isRecord(about) ||
+    !isRecord(contact)
+  ) {
+    return { success: false, error: "Invalid page content" };
+  }
+
+  const materialItems = parseMaterialItems(materials.items);
+  if (!materialItems.success) {
+    return { success: false, error: materialItems.error };
+  }
+
+  const parsed: PageContent = {
+    home: {
+      hero_title_en: getRequiredString(home, "hero_title_en") ?? "",
+      hero_title_ar: getRequiredString(home, "hero_title_ar") ?? "",
+      hero_subtitle_en: getRequiredString(home, "hero_subtitle_en") ?? "",
+      hero_subtitle_ar: getRequiredString(home, "hero_subtitle_ar") ?? "",
+      cta_label_en: getRequiredString(home, "cta_label_en") ?? "",
+      cta_label_ar: getRequiredString(home, "cta_label_ar") ?? "",
+      featured_title_en: getRequiredString(home, "featured_title_en") ?? "",
+      featured_title_ar: getRequiredString(home, "featured_title_ar") ?? "",
+      featured_link_label_en: getRequiredString(home, "featured_link_label_en") ?? "",
+      featured_link_label_ar: getRequiredString(home, "featured_link_label_ar") ?? "",
+      why_title_en: getRequiredString(home, "why_title_en") ?? "",
+      why_title_ar: getRequiredString(home, "why_title_ar") ?? "",
+      why_text_en: getRequiredString(home, "why_text_en") ?? "",
+      why_text_ar: getRequiredString(home, "why_text_ar") ?? "",
+      materials_link_label_en: getRequiredString(home, "materials_link_label_en") ?? "",
+      materials_link_label_ar: getRequiredString(home, "materials_link_label_ar") ?? "",
+    },
+    products: {
+      title_en: getRequiredString(products, "title_en") ?? "",
+      title_ar: getRequiredString(products, "title_ar") ?? "",
+      subtitle_en: getRequiredString(products, "subtitle_en") ?? "",
+      subtitle_ar: getRequiredString(products, "subtitle_ar") ?? "",
+      empty_en: getRequiredString(products, "empty_en") ?? "",
+      empty_ar: getRequiredString(products, "empty_ar") ?? "",
+    },
+    materials: {
+      title_en: getRequiredString(materials, "title_en") ?? "",
+      title_ar: getRequiredString(materials, "title_ar") ?? "",
+      subtitle_en: getRequiredString(materials, "subtitle_en") ?? "",
+      subtitle_ar: getRequiredString(materials, "subtitle_ar") ?? "",
+      references_label_en: getRequiredString(materials, "references_label_en") ?? "",
+      references_label_ar: getRequiredString(materials, "references_label_ar") ?? "",
+      items: materialItems.data,
+    },
+    about: {
+      title_en: getRequiredString(about, "title_en") ?? "",
+      title_ar: getRequiredString(about, "title_ar") ?? "",
+      mission_title_en: getRequiredString(about, "mission_title_en") ?? "",
+      mission_title_ar: getRequiredString(about, "mission_title_ar") ?? "",
+      mission_text_en: getRequiredString(about, "mission_text_en") ?? "",
+      mission_text_ar: getRequiredString(about, "mission_text_ar") ?? "",
+      vision_title_en: getRequiredString(about, "vision_title_en") ?? "",
+      vision_title_ar: getRequiredString(about, "vision_title_ar") ?? "",
+      vision_text_en: getRequiredString(about, "vision_text_en") ?? "",
+      vision_text_ar: getRequiredString(about, "vision_text_ar") ?? "",
+    },
+    contact: {
+      title_en: getRequiredString(contact, "title_en") ?? "",
+      title_ar: getRequiredString(contact, "title_ar") ?? "",
+      subtitle_en: getRequiredString(contact, "subtitle_en") ?? "",
+      subtitle_ar: getRequiredString(contact, "subtitle_ar") ?? "",
+      form_title_en: getRequiredString(contact, "form_title_en") ?? "",
+      form_title_ar: getRequiredString(contact, "form_title_ar") ?? "",
+    },
+  };
+
+  const hasEmptyField =
+    Object.values(parsed.home).some((field) => field.length === 0) ||
+    Object.values(parsed.products).some((field) => field.length === 0) ||
+    Object.entries(parsed.materials)
+      .filter(([key]) => key !== "items")
+      .some(([, field]) => typeof field === "string" && field.length === 0) ||
+    Object.values(parsed.about).some((field) => field.length === 0) ||
+    Object.values(parsed.contact).some((field) => field.length === 0);
+
+  if (hasEmptyField) {
+    return { success: false, error: "Invalid page content" };
+  }
+
+  return { success: true, data: parsed };
 }
 
 function parseChatMessages(value: unknown): ValidationResult<ChatMessage[]> {
@@ -276,7 +533,7 @@ export function parseSiteSettingsInput(
   }
 
   const output: SiteSettingsInput = {};
-  const keys: (keyof Omit<SiteSettings, "hero_images">)[] = [
+  const keys: (keyof Omit<SiteSettings, "hero_images" | "page_content">)[] = [
     "logo_url",
     "contact_email",
     "contact_phone",
@@ -300,6 +557,14 @@ export function parseSiteSettingsInput(
     }
 
     output.hero_images = heroImages;
+  }
+
+  if ("page_content" in payload) {
+    const parsedPageContent = parsePageContent(payload.page_content);
+    if (!parsedPageContent.success) {
+      return parsedPageContent;
+    }
+    output.page_content = parsedPageContent.data;
   }
 
   for (const key of keys) {

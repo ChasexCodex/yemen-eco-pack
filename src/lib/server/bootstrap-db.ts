@@ -1,4 +1,5 @@
 import { products as fallbackProducts } from "@/lib/products";
+import { defaultPageContent } from "@/lib/site-defaults";
 import { dbPool } from "./db";
 
 type SeedProduct = {
@@ -39,6 +40,8 @@ const seedProducts: SeedProduct[] = fallbackProducts.map((product) => ({
   stock_amount: product.stockAmount,
   in_stock: product.inStock,
 }));
+
+const defaultPageContentSql = JSON.stringify(defaultPageContent).replace(/'/g, "''");
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -123,6 +126,7 @@ async function runBootstrap() {
         address_ar TEXT NOT NULL DEFAULT 'صنعاء، اليمن',
         tagline_en TEXT NOT NULL DEFAULT 'Sustainable packaging for a greener tomorrow.',
         tagline_ar TEXT NOT NULL DEFAULT 'تغليف مستدام لغد أكثر اخضرارًا.',
+        page_content JSONB NOT NULL DEFAULT '{}'::jsonb,
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
@@ -133,10 +137,24 @@ async function runBootstrap() {
     `);
 
     await client.query(`
+      ALTER TABLE site_settings
+      ADD COLUMN IF NOT EXISTS page_content JSONB;
+    `);
+
+    await client.query(`
       UPDATE site_settings
       SET hero_images = ARRAY['/hero.png']
       WHERE hero_images IS NULL;
     `);
+
+    await client.query(
+      `
+        UPDATE site_settings
+        SET page_content = $1::jsonb
+        WHERE page_content IS NULL;
+      `,
+      [JSON.stringify(defaultPageContent)],
+    );
 
     await client.query(`
       ALTER TABLE site_settings
@@ -145,7 +163,17 @@ async function runBootstrap() {
 
     await client.query(`
       ALTER TABLE site_settings
+      ALTER COLUMN page_content SET DEFAULT '${defaultPageContentSql}'::jsonb;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
       ALTER COLUMN hero_images SET NOT NULL;
+    `);
+
+    await client.query(`
+      ALTER TABLE site_settings
+      ALTER COLUMN page_content SET NOT NULL;
     `);
 
     await client.query(

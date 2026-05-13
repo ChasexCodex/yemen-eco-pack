@@ -5,24 +5,14 @@ import { dbPool } from "@/lib/server/db";
 import { isDbUnavailableError } from "@/lib/server/db-errors";
 import { parseSiteSettingsInput } from "@/lib/server/models";
 import { serializeSiteSettings } from "@/lib/server/serializers";
-
-const fallbackSettings = {
-  logo_url: "/logo.png",
-  hero_images: ["/hero.png"],
-  contact_email: "info@biopak.ye",
-  contact_phone: "+967-1-555-0100",
-  address_en: "Sana'a, Yemen",
-  address_ar: "صنعاء، اليمن",
-  tagline_en: "Sustainable solutions for a greener Yemen.",
-  tagline_ar: "حلول مستدامة من أجل يمن أكثر اخضرارا.",
-};
+import { defaultSiteSettings } from "@/lib/site-defaults";
 
 async function getSettingsRow() {
   await ensureDatabaseReady();
 
   const result = await dbPool.query(`
     SELECT
-      logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar
+      logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content
     FROM site_settings
     WHERE id = 1;
   `);
@@ -38,7 +28,7 @@ export async function GET() {
     }
     return NextResponse.json(serializeSiteSettings(row));
   } catch {
-    return NextResponse.json(fallbackSettings);
+    return NextResponse.json(defaultSiteSettings);
   }
 }
 
@@ -72,7 +62,7 @@ export async function PATCH(request: NextRequest) {
       SET ${updates.join(", ")}
       WHERE id = 1
       RETURNING
-        logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar;
+        logo_url, hero_images, contact_email, contact_phone, address_en, address_ar, tagline_en, tagline_ar, page_content;
     `;
 
     const result = await dbPool.query(query, values);

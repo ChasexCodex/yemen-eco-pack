@@ -11,7 +11,7 @@ import { useApiSWR } from "@/lib/swr";
 import type { Product } from "@/lib/types";
 
 export function HomeContent() {
-  const { t } = useLanguage();
+  const { lang } = useLanguage();
   const { settings } = useSiteSettings();
   const { data, error, isLoading } = useApiSWR<Product[]>("/api/products");
   const products = data?.slice(0, 4) ?? [];
@@ -19,6 +19,9 @@ export function HomeContent() {
     () => (settings.hero_images.length > 0 ? settings.hero_images : ["/hero.png"]),
     [settings.hero_images],
   );
+  const isArabic = lang === "ar";
+  const homePage = settings.page_content.home;
+  const productsPage = settings.page_content.products;
 
   return (
     <main>
@@ -26,16 +29,16 @@ export function HomeContent() {
         <div className="container grid items-center gap-12 lg:grid-cols-2">
           <div>
             <h1 className="mb-6 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
-              {t("home.heroTitle")}
+              {isArabic ? homePage.hero_title_ar : homePage.hero_title_en}
             </h1>
             <p className="mb-8 max-w-xl text-lg text-muted">
-              {t("home.heroSubtitle")}
+              {isArabic ? homePage.hero_subtitle_ar : homePage.hero_subtitle_en}
             </p>
             <Link
               href="/materials"
               className="inline-flex rounded-lg bg-primary px-8 py-3 text-base font-semibold text-primary-foreground shadow transition hover:opacity-90"
             >
-              {t("home.shopNow")}
+              {isArabic ? homePage.cta_label_ar : homePage.cta_label_en}
             </Link>
           </div>
           <div className="relative">
@@ -48,9 +51,11 @@ export function HomeContent() {
       <section className="py-20">
         <div className="container">
           <div className="mb-10 flex items-end justify-between">
-            <h2 className="text-3xl font-bold">{t("home.featuredProducts")}</h2>
+            <h2 className="text-3xl font-bold">
+              {isArabic ? homePage.featured_title_ar : homePage.featured_title_en}
+            </h2>
             <Link href="/products" className="hidden text-sm font-semibold text-primary hover:underline sm:block">
-              {t("home.viewAll")}
+              {isArabic ? homePage.featured_link_label_ar : homePage.featured_link_label_en}
             </Link>
           </div>
           {error ? (
@@ -62,7 +67,9 @@ export function HomeContent() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <p className="rounded-xl border border-border bg-card p-6 text-muted">{t("products.empty")}</p>
+            <p className="rounded-xl border border-border bg-card p-6 text-muted">
+              {isArabic ? productsPage.empty_ar : productsPage.empty_en}
+            </p>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {products.map((product) => (
@@ -79,12 +86,14 @@ export function HomeContent() {
             <Leaf className="h-10 w-10" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="mb-4 text-3xl font-bold">{t("home.whyBiodegradable")}</h2>
+            <h2 className="mb-4 text-3xl font-bold">
+              {isArabic ? homePage.why_title_ar : homePage.why_title_en}
+            </h2>
             <p className="max-w-4xl text-lg leading-relaxed text-muted">
-              {t("home.whyBiodegradableText")}
+              {isArabic ? homePage.why_text_ar : homePage.why_text_en}
             </p>
             <Link href="/materials" className="mt-5 inline-flex text-sm font-semibold text-primary hover:underline">
-              {t("home.learnMaterials")}
+              {isArabic ? homePage.materials_link_label_ar : homePage.materials_link_label_en}
             </Link>
           </div>
         </div>

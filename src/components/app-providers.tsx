@@ -10,21 +10,11 @@ import {
   useState,
 } from "react";
 import { translate } from "@/lib/i18n";
+import { defaultSiteSettings } from "@/lib/site-defaults";
 import { useApiSWR } from "@/lib/swr";
 import type { Lang, SiteSettings } from "@/lib/types";
 
 type Theme = "light" | "dark";
-
-const defaultSettings: SiteSettings = {
-  logo_url: "/logo.png",
-  hero_images: ["/hero.png"],
-  contact_email: "info@biopak.ye",
-  contact_phone: "+967-1-555-0100",
-  address_en: "Sana'a, Yemen",
-  address_ar: "صنعاء، اليمن",
-  tagline_en: "Sustainable solutions for a greener Yemen.",
-  tagline_ar: "حلول مستدامة من أجل يمن أكثر اخضرارا.",
-};
 
 type LanguageContextValue = {
   lang: Lang;
@@ -94,7 +84,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     window.localStorage.setItem("biopak-theme", theme);
   }, [theme, preferencesReady]);
 
-  const settings = settingsData ?? defaultSettings;
+  const settings = settingsData ?? defaultSiteSettings;
 
   const refreshSettings = useCallback(async () => {
     await mutateSettings();

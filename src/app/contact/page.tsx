@@ -11,10 +11,12 @@ import type { Inquiry, InquiryInput } from "@/lib/types";
 export default function ContactPage() {
   const { lang, t } = useLanguage();
   const { settings, settingsLoading } = useSiteSettings();
+  const content = settings.page_content.contact;
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
 
   const address = lang === "ar" ? settings.address_ar : settings.address_en;
+  const isArabic = lang === "ar";
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -43,9 +45,11 @@ export default function ContactPage() {
     <SiteShell>
       <section className="container max-w-6xl py-20">
         <div className="mb-16 text-center">
-          <h1 className="mb-6 text-4xl font-bold md:text-5xl">{t("contact.title")}</h1>
+          <h1 className="mb-6 text-4xl font-bold md:text-5xl">
+            {isArabic ? content.title_ar : content.title_en}
+          </h1>
           <p className="mx-auto max-w-2xl text-xl text-muted">
-            {t("contact.subtitle")}
+            {isArabic ? content.subtitle_ar : content.subtitle_en}
           </p>
         </div>
 
@@ -115,7 +119,9 @@ export default function ContactPage() {
 
           <div className="lg:col-span-3">
             <div className="rounded-3xl border border-border bg-card p-8 shadow-sm md:p-12">
-              <h2 className="mb-8 text-2xl font-bold">{t("contact.formTitle")}</h2>
+              <h2 className="mb-8 text-2xl font-bold">
+                {isArabic ? content.form_title_ar : content.form_title_en}
+              </h2>
               <form className="space-y-6" onSubmit={onSubmit}>
                 <div>
                   <label className="mb-2 block text-base font-medium">{t("contact.nameLabel")}</label>
@@ -168,4 +174,3 @@ export default function ContactPage() {
     </SiteShell>
   );
 }
-

@@ -1,18 +1,28 @@
 "use client";
 
-import { useLanguage } from "@/components/app-providers";
+import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { ProductCard } from "@/components/product-card";
 import { Skeleton } from "@/components/skeleton";
 import { useApiSWR } from "@/lib/swr";
 import type { Product } from "@/lib/types";
 
 export function ProductsContent() {
-  const { t } = useLanguage();
+  const { lang } = useLanguage();
+  const { settings } = useSiteSettings();
   const { data: products = [], error, isLoading } = useApiSWR<Product[]>("/api/products");
+  const content = settings.page_content.products;
+  const isArabic = lang === "ar";
 
   return (
     <section className="container py-16">
-      <h1 className="mb-12 text-4xl font-bold text-foreground">{t("products.title")}</h1>
+      <div className="mb-12 max-w-3xl">
+        <h1 className="mb-4 text-4xl font-bold text-foreground">
+          {isArabic ? content.title_ar : content.title_en}
+        </h1>
+        <p className="text-lg text-muted">
+          {isArabic ? content.subtitle_ar : content.subtitle_en}
+        </p>
+      </div>
 
       {isLoading ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -24,7 +34,7 @@ export function ProductsContent() {
         <p className="rounded-xl border border-border bg-card p-6 text-red-700">{error.message}</p>
       ) : products.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-6 text-muted">
-          {t("products.empty")}
+          {isArabic ? content.empty_ar : content.empty_en}
         </p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -55,4 +65,3 @@ function ProductCardSkeleton() {
     </article>
   );
 }
-

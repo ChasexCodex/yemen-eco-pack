@@ -1,5 +1,79 @@
 export type Lang = "en" | "ar";
 
+export type MaterialPageReference = {
+  title: string;
+  url: string;
+};
+
+export type MaterialPageItem = {
+  id: string;
+  title_en: string;
+  title_ar: string;
+  what_en: string;
+  what_ar: string;
+  benefits_en: string;
+  benefits_ar: string;
+  links: MaterialPageReference[];
+};
+
+export type PageContent = {
+  home: {
+    hero_title_en: string;
+    hero_title_ar: string;
+    hero_subtitle_en: string;
+    hero_subtitle_ar: string;
+    cta_label_en: string;
+    cta_label_ar: string;
+    featured_title_en: string;
+    featured_title_ar: string;
+    featured_link_label_en: string;
+    featured_link_label_ar: string;
+    why_title_en: string;
+    why_title_ar: string;
+    why_text_en: string;
+    why_text_ar: string;
+    materials_link_label_en: string;
+    materials_link_label_ar: string;
+  };
+  products: {
+    title_en: string;
+    title_ar: string;
+    subtitle_en: string;
+    subtitle_ar: string;
+    empty_en: string;
+    empty_ar: string;
+  };
+  materials: {
+    title_en: string;
+    title_ar: string;
+    subtitle_en: string;
+    subtitle_ar: string;
+    references_label_en: string;
+    references_label_ar: string;
+    items: MaterialPageItem[];
+  };
+  about: {
+    title_en: string;
+    title_ar: string;
+    mission_title_en: string;
+    mission_title_ar: string;
+    mission_text_en: string;
+    mission_text_ar: string;
+    vision_title_en: string;
+    vision_title_ar: string;
+    vision_text_en: string;
+    vision_text_ar: string;
+  };
+  contact: {
+    title_en: string;
+    title_ar: string;
+    subtitle_en: string;
+    subtitle_ar: string;
+    form_title_en: string;
+    form_title_ar: string;
+  };
+};
+
 export type Product = {
   id: number;
   slug: string;
@@ -47,6 +121,7 @@ export type SiteSettings = {
   address_ar: string;
   tagline_en: string;
   tagline_ar: string;
+  page_content: PageContent;
 };
 
 export type AdminStats = {

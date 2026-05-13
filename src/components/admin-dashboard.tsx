@@ -7,9 +7,9 @@ import { useLanguage, useSiteSettings } from "@/components/app-providers";
 import { apiRequest } from "@/lib/api-client";
 import { Skeleton } from "@/components/skeleton";
 import { useApiSWR } from "@/lib/swr";
-import type { AdminStats, Inquiry, Product, ProductInput, SiteSettings } from "@/lib/types";
+import type { AdminStats, Inquiry, MaterialPageItem, Product, ProductInput, SiteSettings } from "@/lib/types";
 
-type Tab = "stats" | "products" | "inquiries" | "settings";
+type Tab = "stats" | "products" | "inquiries" | "settings" | "pages";
 type UploadField = "product-image" | "logo-image" | "hero-image-new" | `hero-image-${number}`;
 
 type ProductFormState = {
@@ -49,6 +49,8 @@ type UploadImageResponse = {
   path: string;
   url: string;
 };
+
+type PageContentState = SiteSettings["page_content"];
 
 function productToForm(product: Product): ProductFormState {
   return {
@@ -393,6 +395,8 @@ export function AdminDashboard() {
 
   const currentSettings = settingsForm ?? settingsData ?? null;
   const heroImages = currentSettings?.hero_images ?? [];
+  const pageContent = currentSettings?.page_content ?? null;
+  const materialItems = pageContent?.materials.items ?? [];
 
   const updateHeroImage = (index: number, value: string) => {
     updateSettingsField(
@@ -423,8 +427,134 @@ export function AdminDashboard() {
     setActionError(null);
   };
 
-  const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const updatePageSection = <K extends keyof PageContentState>(
+    section: K,
+    value: PageContentState[K],
+  ) => {
+    if (!pageContent) return;
+    updateSettingsField("page_content", {
+      ...pageContent,
+      [section]: value,
+    } as PageContentState);
+  };
+
+  const updatePageField = <
+    K extends keyof PageContentState,
+    F extends keyof PageContentState[K],
+  >(
+    section: K,
+    field: F,
+    value: PageContentState[K][F],
+  ) => {
+    if (!pageContent) return;
+    updatePageSection(section, {
+      ...pageContent[section],
+      [field]: value,
+    } as PageContentState[K]);
+  };
+
+  const updateMaterialItemField = <K extends keyof MaterialPageItem>(
+    index: number,
+    field: K,
+    value: MaterialPageItem[K],
+  ) => {
+    if (!pageContent) return;
+    updatePageSection("materials", {
+      ...pageContent.materials,
+      items: materialItems.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    });
+  };
+
+  const addMaterialItem = () => {
+    if (!pageContent) return;
+    const nextMaterialId =
+      materialItems.reduce((maxId, item) => {
+        const match = item.id.match(/^material-(\d+)$/);
+        const candidate = match ? Number(match[1]) : 0;
+        return candidate > maxId ? candidate : maxId;
+      }, 0) + 1;
+
+    updatePageSection("materials", {
+      ...pageContent.materials,
+      items: [
+        ...materialItems,
+        {
+          id: `material-${nextMaterialId}`,
+          title_en: "New material",
+          title_ar: "مادة جديدة",
+          what_en: "Describe what this material is.",
+          what_ar: "اشرح ما هي هذه المادة.",
+          benefits_en: "Describe the key benefits of this material.",
+          benefits_ar: "اشرح الفوائد الرئيسية لهذه المادة.",
+          links: [],
+        },
+      ],
+    });
+  };
+
+  const removeMaterialItem = (index: number) => {
+    if (!pageContent) return;
+    updatePageSection("materials", {
+      ...pageContent.materials,
+      items: materialItems.filter((_, itemIndex) => itemIndex !== index),
+    });
+  };
+
+  const updateMaterialLink = (
+    itemIndex: number,
+    linkIndex: number,
+    field: "title" | "url",
+    value: string,
+  ) => {
+    if (!pageContent) return;
+    updatePageSection("materials", {
+      ...pageContent.materials,
+      items: materialItems.map((item, currentItemIndex) =>
+        currentItemIndex === itemIndex
+          ? {
+              ...item,
+              links: item.links.map((link, currentLinkIndex) =>
+                currentLinkIndex === linkIndex ? { ...link, [field]: value } : link,
+              ),
+            }
+          : item,
+      ),
+    });
+  };
+
+  const addMaterialLink = (itemIndex: number) => {
+    if (!pageContent) return;
+    updatePageSection("materials", {
+      ...pageContent.materials,
+      items: materialItems.map((item, currentItemIndex) =>
+        currentItemIndex === itemIndex
+          ? {
+              ...item,
+              links: [...item.links, { title: "Reference title", url: "https://example.com" }],
+            }
+          : item,
+      ),
+    });
+  };
+
+  const removeMaterialLink = (itemIndex: number, linkIndex: number) => {
+    if (!pageContent) return;
+    updatePageSection("materials", {
+      ...pageContent.materials,
+      items: materialItems.map((item, currentItemIndex) =>
+        currentItemIndex === itemIndex
+          ? {
+              ...item,
+              links: item.links.filter((_, currentLinkIndex) => currentLinkIndex !== linkIndex),
+            }
+          : item,
+      ),
+    });
+  };
+
+  const persistSettings = async (successMessage: string) => {
     const nextSettings = settingsForm ?? settingsData;
     if (!nextSettings) return;
     setSaving(true);
@@ -438,7 +568,7 @@ export function AdminDashboard() {
       setSettingsForm(updated);
       await mutateSettings(updated, { revalidate: false });
       await refreshSettings();
-      setNotice("Settings updated.");
+      setNotice(successMessage);
     } catch (caught: unknown) {
       setActionError(caught instanceof Error ? caught.message : "Unable to update settings");
     } finally {
@@ -446,11 +576,22 @@ export function AdminDashboard() {
     }
   };
 
+  const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await persistSettings("Settings updated.");
+  };
+
+  const savePages = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await persistSettings("Pages updated.");
+  };
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "stats", label: t("admin.stats") },
     { id: "products", label: t("admin.products") },
     { id: "inquiries", label: t("admin.inquiries") },
     { id: "settings", label: t("admin.settings") },
+    { id: "pages", label: t("admin.pages") },
   ];
 
   return (
@@ -824,6 +965,244 @@ export function AdminDashboard() {
             </button>
           </div>
         </form>
+        )
+      ) : null}
+
+      {tab === "pages" ? (
+        loading || !pageContent ? (
+          <SettingsSkeleton />
+        ) : (
+          <form onSubmit={savePages} className="max-w-5xl rounded-2xl border border-border bg-card p-6">
+            <h2 className="mb-5 text-xl font-bold">{t("admin.pages")}</h2>
+            <div className="grid gap-6">
+              <section className="rounded-2xl border border-border p-5">
+                <h3 className="mb-4 text-lg font-semibold">Home page</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="hero_title_en">
+                    <textarea className={textareaClassName} rows={2} value={pageContent.home.hero_title_en} onChange={(event) => updatePageField("home", "hero_title_en", event.target.value)} />
+                  </Field>
+                  <Field label="hero_title_ar">
+                    <textarea className={textareaClassName} rows={2} dir="rtl" value={pageContent.home.hero_title_ar} onChange={(event) => updatePageField("home", "hero_title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="hero_subtitle_en">
+                    <textarea className={textareaClassName} rows={3} value={pageContent.home.hero_subtitle_en} onChange={(event) => updatePageField("home", "hero_subtitle_en", event.target.value)} />
+                  </Field>
+                  <Field label="hero_subtitle_ar">
+                    <textarea className={textareaClassName} rows={3} dir="rtl" value={pageContent.home.hero_subtitle_ar} onChange={(event) => updatePageField("home", "hero_subtitle_ar", event.target.value)} />
+                  </Field>
+                  <Field label="cta_label_en">
+                    <input className={inputClassName} value={pageContent.home.cta_label_en} onChange={(event) => updatePageField("home", "cta_label_en", event.target.value)} />
+                  </Field>
+                  <Field label="cta_label_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.home.cta_label_ar} onChange={(event) => updatePageField("home", "cta_label_ar", event.target.value)} />
+                  </Field>
+                  <Field label="featured_title_en">
+                    <input className={inputClassName} value={pageContent.home.featured_title_en} onChange={(event) => updatePageField("home", "featured_title_en", event.target.value)} />
+                  </Field>
+                  <Field label="featured_title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.home.featured_title_ar} onChange={(event) => updatePageField("home", "featured_title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="featured_link_label_en">
+                    <input className={inputClassName} value={pageContent.home.featured_link_label_en} onChange={(event) => updatePageField("home", "featured_link_label_en", event.target.value)} />
+                  </Field>
+                  <Field label="featured_link_label_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.home.featured_link_label_ar} onChange={(event) => updatePageField("home", "featured_link_label_ar", event.target.value)} />
+                  </Field>
+                  <Field label="why_title_en">
+                    <input className={inputClassName} value={pageContent.home.why_title_en} onChange={(event) => updatePageField("home", "why_title_en", event.target.value)} />
+                  </Field>
+                  <Field label="why_title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.home.why_title_ar} onChange={(event) => updatePageField("home", "why_title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="why_text_en">
+                    <textarea className={textareaClassName} rows={4} value={pageContent.home.why_text_en} onChange={(event) => updatePageField("home", "why_text_en", event.target.value)} />
+                  </Field>
+                  <Field label="why_text_ar">
+                    <textarea className={textareaClassName} rows={4} dir="rtl" value={pageContent.home.why_text_ar} onChange={(event) => updatePageField("home", "why_text_ar", event.target.value)} />
+                  </Field>
+                  <Field label="materials_link_label_en">
+                    <input className={inputClassName} value={pageContent.home.materials_link_label_en} onChange={(event) => updatePageField("home", "materials_link_label_en", event.target.value)} />
+                  </Field>
+                  <Field label="materials_link_label_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.home.materials_link_label_ar} onChange={(event) => updatePageField("home", "materials_link_label_ar", event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-border p-5">
+                <h3 className="mb-4 text-lg font-semibold">Products page</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="title_en">
+                    <input className={inputClassName} value={pageContent.products.title_en} onChange={(event) => updatePageField("products", "title_en", event.target.value)} />
+                  </Field>
+                  <Field label="title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.products.title_ar} onChange={(event) => updatePageField("products", "title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="subtitle_en">
+                    <textarea className={textareaClassName} rows={3} value={pageContent.products.subtitle_en} onChange={(event) => updatePageField("products", "subtitle_en", event.target.value)} />
+                  </Field>
+                  <Field label="subtitle_ar">
+                    <textarea className={textareaClassName} rows={3} dir="rtl" value={pageContent.products.subtitle_ar} onChange={(event) => updatePageField("products", "subtitle_ar", event.target.value)} />
+                  </Field>
+                  <Field label="empty_en">
+                    <textarea className={textareaClassName} rows={2} value={pageContent.products.empty_en} onChange={(event) => updatePageField("products", "empty_en", event.target.value)} />
+                  </Field>
+                  <Field label="empty_ar">
+                    <textarea className={textareaClassName} rows={2} dir="rtl" value={pageContent.products.empty_ar} onChange={(event) => updatePageField("products", "empty_ar", event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-border p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h3 className="text-lg font-semibold">Materials page</h3>
+                  <button type="button" onClick={addMaterialItem} className="rounded-lg border border-border px-4 py-2 font-semibold hover:bg-background">
+                    Add material
+                  </button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="title_en">
+                    <input className={inputClassName} value={pageContent.materials.title_en} onChange={(event) => updatePageField("materials", "title_en", event.target.value)} />
+                  </Field>
+                  <Field label="title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.materials.title_ar} onChange={(event) => updatePageField("materials", "title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="subtitle_en">
+                    <textarea className={textareaClassName} rows={3} value={pageContent.materials.subtitle_en} onChange={(event) => updatePageField("materials", "subtitle_en", event.target.value)} />
+                  </Field>
+                  <Field label="subtitle_ar">
+                    <textarea className={textareaClassName} rows={3} dir="rtl" value={pageContent.materials.subtitle_ar} onChange={(event) => updatePageField("materials", "subtitle_ar", event.target.value)} />
+                  </Field>
+                  <Field label="references_label_en">
+                    <input className={inputClassName} value={pageContent.materials.references_label_en} onChange={(event) => updatePageField("materials", "references_label_en", event.target.value)} />
+                  </Field>
+                  <Field label="references_label_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.materials.references_label_ar} onChange={(event) => updatePageField("materials", "references_label_ar", event.target.value)} />
+                  </Field>
+                </div>
+
+                <div className="mt-6 grid gap-4">
+                  {materialItems.map((item, itemIndex) => (
+                    <article key={item.id} className="rounded-2xl border border-border bg-background p-4">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h4 className="font-semibold">Material {itemIndex + 1}</h4>
+                        <button type="button" onClick={() => removeMaterialItem(itemIndex)} className="rounded border border-red-300 p-2 text-red-700 hover:bg-red-50">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="id">
+                          <input className={inputClassName} value={item.id} onChange={(event) => updateMaterialItemField(itemIndex, "id", event.target.value)} />
+                        </Field>
+                        <Field label="title_en">
+                          <input className={inputClassName} value={item.title_en} onChange={(event) => updateMaterialItemField(itemIndex, "title_en", event.target.value)} />
+                        </Field>
+                        <Field label="title_ar">
+                          <input className={inputClassName} dir="rtl" value={item.title_ar} onChange={(event) => updateMaterialItemField(itemIndex, "title_ar", event.target.value)} />
+                        </Field>
+                        <Field label="what_en">
+                          <textarea className={textareaClassName} rows={3} value={item.what_en} onChange={(event) => updateMaterialItemField(itemIndex, "what_en", event.target.value)} />
+                        </Field>
+                        <Field label="what_ar">
+                          <textarea className={textareaClassName} rows={3} dir="rtl" value={item.what_ar} onChange={(event) => updateMaterialItemField(itemIndex, "what_ar", event.target.value)} />
+                        </Field>
+                        <Field label="benefits_en">
+                          <textarea className={textareaClassName} rows={3} value={item.benefits_en} onChange={(event) => updateMaterialItemField(itemIndex, "benefits_en", event.target.value)} />
+                        </Field>
+                        <Field label="benefits_ar">
+                          <textarea className={textareaClassName} rows={3} dir="rtl" value={item.benefits_ar} onChange={(event) => updateMaterialItemField(itemIndex, "benefits_ar", event.target.value)} />
+                        </Field>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-border p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <h5 className="font-medium">References</h5>
+                          <button type="button" onClick={() => addMaterialLink(itemIndex)} className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-card">
+                            Add link
+                          </button>
+                        </div>
+                        <div className="grid gap-3">
+                          {item.links.map((link, linkIndex) => (
+                            <div key={`${item.id}-link-${linkIndex}`} className="grid gap-3 rounded-xl border border-border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+                              <input className={inputClassName} value={link.title} onChange={(event) => updateMaterialLink(itemIndex, linkIndex, "title", event.target.value)} />
+                              <input className={inputClassName} value={link.url} onChange={(event) => updateMaterialLink(itemIndex, linkIndex, "url", event.target.value)} />
+                              <button type="button" onClick={() => removeMaterialLink(itemIndex, linkIndex)} className="rounded border border-red-300 p-2 text-red-700 hover:bg-red-50">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-border p-5">
+                <h3 className="mb-4 text-lg font-semibold">About page</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="title_en">
+                    <input className={inputClassName} value={pageContent.about.title_en} onChange={(event) => updatePageField("about", "title_en", event.target.value)} />
+                  </Field>
+                  <Field label="title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.about.title_ar} onChange={(event) => updatePageField("about", "title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="mission_title_en">
+                    <input className={inputClassName} value={pageContent.about.mission_title_en} onChange={(event) => updatePageField("about", "mission_title_en", event.target.value)} />
+                  </Field>
+                  <Field label="mission_title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.about.mission_title_ar} onChange={(event) => updatePageField("about", "mission_title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="mission_text_en">
+                    <textarea className={textareaClassName} rows={4} value={pageContent.about.mission_text_en} onChange={(event) => updatePageField("about", "mission_text_en", event.target.value)} />
+                  </Field>
+                  <Field label="mission_text_ar">
+                    <textarea className={textareaClassName} rows={4} dir="rtl" value={pageContent.about.mission_text_ar} onChange={(event) => updatePageField("about", "mission_text_ar", event.target.value)} />
+                  </Field>
+                  <Field label="vision_title_en">
+                    <input className={inputClassName} value={pageContent.about.vision_title_en} onChange={(event) => updatePageField("about", "vision_title_en", event.target.value)} />
+                  </Field>
+                  <Field label="vision_title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.about.vision_title_ar} onChange={(event) => updatePageField("about", "vision_title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="vision_text_en">
+                    <textarea className={textareaClassName} rows={4} value={pageContent.about.vision_text_en} onChange={(event) => updatePageField("about", "vision_text_en", event.target.value)} />
+                  </Field>
+                  <Field label="vision_text_ar">
+                    <textarea className={textareaClassName} rows={4} dir="rtl" value={pageContent.about.vision_text_ar} onChange={(event) => updatePageField("about", "vision_text_ar", event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-border p-5">
+                <h3 className="mb-4 text-lg font-semibold">Contact page</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="title_en">
+                    <input className={inputClassName} value={pageContent.contact.title_en} onChange={(event) => updatePageField("contact", "title_en", event.target.value)} />
+                  </Field>
+                  <Field label="title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.contact.title_ar} onChange={(event) => updatePageField("contact", "title_ar", event.target.value)} />
+                  </Field>
+                  <Field label="subtitle_en">
+                    <textarea className={textareaClassName} rows={3} value={pageContent.contact.subtitle_en} onChange={(event) => updatePageField("contact", "subtitle_en", event.target.value)} />
+                  </Field>
+                  <Field label="subtitle_ar">
+                    <textarea className={textareaClassName} rows={3} dir="rtl" value={pageContent.contact.subtitle_ar} onChange={(event) => updatePageField("contact", "subtitle_ar", event.target.value)} />
+                  </Field>
+                  <Field label="form_title_en">
+                    <input className={inputClassName} value={pageContent.contact.form_title_en} onChange={(event) => updatePageField("contact", "form_title_en", event.target.value)} />
+                  </Field>
+                  <Field label="form_title_ar">
+                    <input className={inputClassName} dir="rtl" value={pageContent.contact.form_title_ar} onChange={(event) => updatePageField("contact", "form_title_ar", event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+
+              <button className="w-fit rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-60" disabled={saving}>
+                {t("admin.save")}
+              </button>
+            </div>
+          </form>
         )
       ) : null}
     </section>

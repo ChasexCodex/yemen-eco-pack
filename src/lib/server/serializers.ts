@@ -1,4 +1,5 @@
 import type { Inquiry, Product, SiteSettings } from "./models";
+import { defaultPageContent } from "@/lib/site-defaults";
 
 type ProductDbRow = {
   id: number;
@@ -38,6 +39,7 @@ type SiteSettingsDbRow = {
   address_ar: string;
   tagline_en: string;
   tagline_ar: string;
+  page_content: SiteSettings["page_content"] | null;
 };
 
 function toIso(value: Date | string) {
@@ -91,5 +93,6 @@ export function serializeSiteSettings(row: SiteSettingsDbRow): SiteSettings {
     address_ar: row.address_ar,
     tagline_en: row.tagline_en,
     tagline_ar: row.tagline_ar,
+    page_content: row.page_content ?? defaultPageContent,
   };
 }

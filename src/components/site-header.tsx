@@ -47,30 +47,35 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur">
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          {settingsLoading ? (
-            <>
-              <Skeleton className="h-8 w-8 rounded" />
-              <Skeleton className="h-6 w-24" />
-            </>
-          ) : (
-            <>
-              <Image
-                src={settings.logo_url}
-                alt="BioPak logo"
-                width={32}
-                height={32}
-                unoptimized
-                className="h-8 w-8 rounded p-1 object-contain"
-              />
-              <span className="text-xl font-bold text-primary">BioPak</span>
-            </>
-          )}
-        </Link>
+      <div className="container flex h-16 items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-8">
+          <Link href="/" className="flex items-center gap-2">
+            {settingsLoading ? (
+              <>
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-6 w-24" />
+              </>
+            ) : (
+              <>
+                <Image
+                  src={settings.logo_url}
+                  alt="BioPak logo"
+                  width={32}
+                  height={32}
+                  unoptimized
+                  className="h-8 w-8 rounded p-1 object-contain"
+                />
+                <span className="text-xl font-bold text-primary">BioPak</span>
+              </>
+            )}
+          </Link>
 
-        <nav className="hidden items-center gap-6 md:flex">
-          {navLinks}
+          <nav className="hidden items-center gap-4 md:flex">
+            {navLinks}
+          </nav>
+        </div>
+
+        <nav className="hidden items-center gap-3 md:flex">
           <button
             type="button"
             onClick={toggleLang}
